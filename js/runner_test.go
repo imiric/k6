@@ -394,6 +394,32 @@ func TestSetupDataNoSetup(t *testing.T) {
 	testSetupDataHelper(t, src)
 }
 
+func TestConsoleInInitContext(t *testing.T) {
+	src := &lib.SourceData{
+		Filename: "/script.js",
+		Data: []byte(`
+			console.log("1");
+			export default function(data) {
+			};
+		`),
+	}
+	r1, err := New(src, afero.NewMemMapFs(), lib.RuntimeOptions{})
+	require.NoError(t, err)
+
+	testdata := map[string]*Runner{"Source": r1}
+	for name, r := range testdata {
+		r := r
+		t.Run(name, func(t *testing.T) {
+			samples := make(chan stats.SampleContainer, 100)
+			vu, err := r.NewVU(samples)
+			if assert.NoError(t, err) {
+				err := vu.RunOnce(context.Background())
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestSetupDataNoReturn(t *testing.T) {
 	src := &lib.SourceData{
 		Filename: "/script.js",
