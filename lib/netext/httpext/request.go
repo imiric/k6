@@ -38,7 +38,7 @@ import (
 	"time"
 
 	ntlmssp "github.com/Azure/go-ntlmssp"
-	digest "github.com/Soontao/goHttpDigestClient"
+	"github.com/bobziuchkovski/digest"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
 	log "github.com/sirupsen/logrus"
@@ -338,6 +338,18 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 		}
 	}
 
+	if preq.Auth == "digest" {
+		password, _ := preq.URL.u.User.Password()
+		transport = &digest.Transport{
+			Username:  preq.URL.u.User.Username(),
+			Password:  password,
+			Transport: tracerTransport,
+		}
+
+		// avoid sending the basic auth credentials
+		preq.Req.URL.User = nil
+	}
+
 	resp := &Response{ctx: ctx, URL: preq.URL.URL, Request: *respReq}
 	client := http.Client{
 		Transport: transport,
@@ -370,55 +382,6 @@ func MakeRequest(ctx context.Context, preq *ParsedHTTPRequest) (*Response, error
 			debugRequest(state, req, "RedirectRequest")
 			return nil
 		},
-	}
-
-	// if digest authentication option is passed, make an initial request
-	// to get the authentication params to compute the authorization header
-	if preq.Auth == "digest" {
-		// TODO: fix - this is very broken! we're always making 2 HTTP requests
-		// when digest authentication is enabled... we should refactor it as a
-		// separate transport, like how NTLM auth works
-		//
-		// Github issue: https://github.com/loadimpact/k6/issues/800
-		username := preq.URL.u.User.Username()
-		password, _ := preq.URL.u.User.Password()
-
-		// removing user from URL to avoid sending the authorization header fo basic auth
-		preq.Req.URL.User = nil
-
-		debugRequest(state, preq.Req, "DigestRequest")
-		res, err := client.Do(preq.Req.WithContext(ctx))
-		debugResponse(state, res, "DigestResponse")
-		body, err := readResponseBody(state, ResponseTypeText, res, err)
-		finishedReq := tracerTransport.processLastSavedRequest()
-		if finishedReq != nil {
-			resp.ErrorCode = int(finishedReq.errorCode)
-			resp.Error = finishedReq.errorMsg
-		}
-
-		if err != nil {
-			// Do *not* log errors about the contex being cancelled.
-			select {
-			case <-ctx.Done():
-			default:
-				state.Logger.WithField("error", err).Warn("Digest request failed")
-			}
-
-			// In case we have an error but resp.Error is not set it means the error is not from
-			// the transport. For all such errors currently we just return them as if throw is true
-			if preq.Throw || resp.Error == "" {
-				return nil, err
-			}
-
-			return resp, nil
-		}
-
-		if res.StatusCode == http.StatusUnauthorized {
-			challenge := digest.GetChallengeFromHeader(&res.Header)
-			challenge.ComputeResponse(preq.Req.Method, preq.Req.URL.RequestURI(), body.(string), username, password)
-			authorization := challenge.ToAuthorizationStr()
-			preq.Req.Header.Set(digest.KEY_AUTHORIZATION, authorization)
-		}
 	}
 
 	debugRequest(state, preq.Req, "Request")

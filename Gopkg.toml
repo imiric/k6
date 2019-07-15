@@ -69,7 +69,7 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/Soontao/goHttpDigestClient"
+  name = "github.com/bobziuchkovski/digest"
 
 [[constraint]]
   branch = "master"

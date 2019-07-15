@@ -45,20 +45,20 @@
   version = "v1.16.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:df6450256d48d28ae22f47411292d2a68fed5b7dd9d09490a74b4b257170c975"
-  name = "github.com/Soontao/goHttpDigestClient"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "6d28bb1415c5d06b76a4dcc4bb6e0dd39ce61af9"
-
-[[projects]]
   digest = "1:fc86904a62ac4bfff8cfbe94f42231ce3d8cea8fe2506d5293eaef468f8eaecf"
   name = "github.com/andybalholm/cascadia"
   packages = ["."]
   pruneopts = "NUT"
   revision = "901648c87902174f774fac311d7f176f8647bdaa"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:6a9ca0d9195f6b1e3b3e87036e6d1f1e34f62e836a53ca1bae10e14226330971"
+  name = "github.com/bobziuchkovski/digest"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "26857231d60c9cfee5fbe14cd873bf7633ebbd80"
 
 [[projects]]
   branch = "master"
@@ -357,14 +357,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:16bbae9910129be5a18b951eabacd54414d3faea094dfab92bb3c84884d46b11"
-  name = "github.com/nu7hatch/gouuid"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "179d4d0c4d8d407a32af483c2354df1d2c91e6c3"
-
-[[projects]]
-  branch = "master"
   digest = "1:8fe179a5468c41a57dd75dcb283c1a81c4ca38a934380ff996437033d7d9509a"
   name = "github.com/oxtoacart/bpool"
   packages = ["."]
@@ -657,7 +649,7 @@
     "github.com/GeertJohan/go.rice/embedded",
     "github.com/PuerkitoBio/goquery",
     "github.com/Shopify/sarama",
-    "github.com/Soontao/goHttpDigestClient",
+    "github.com/bobziuchkovski/digest",
     "github.com/dop251/goja",
     "github.com/dop251/goja/parser",
     "github.com/dustin/go-humanize",
