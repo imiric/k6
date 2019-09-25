@@ -49,6 +49,7 @@ var (
 )
 
 // CompatibilityMode ...
+//go:generate enumer -type=CompatibilityMode -transform=snake -trimprefix CompatibilityMode -output compatibility_mode_gen.go
 type CompatibilityMode uint
 
 // CompatibilityMode ...

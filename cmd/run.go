@@ -512,7 +512,7 @@ func newRunner(
 	case "":
 		return newRunner(src, detectType(src.Data), filesystems, rtOpts)
 	case typeJS:
-		return js.New(src, filesystems, rtOpts)
+		return js.New(src, filesystems, rtOpts, runCompatMode)
 	case typeArchive:
 		arc, err := lib.ReadArchive(bytes.NewReader(src.Data))
 		if err != nil {
