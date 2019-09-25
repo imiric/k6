@@ -337,6 +337,9 @@ type Options struct {
 
 	// Redirect console logging to a file
 	ConsoleOutput null.String `json:"-" envconfig:"console_output"`
+
+	// Redirect console logging to a file
+	CompatibilityMode null.String `json:"compatibilityMode" envconfig:"compatibility_mode"`
 }
 
 // Returns the result of overwriting any fields with any that are set on the argument.

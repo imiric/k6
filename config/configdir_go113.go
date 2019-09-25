@@ -20,7 +20,7 @@
  *
  */
 
-package cmd
+package config
 
 import "os"
 

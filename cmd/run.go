@@ -42,6 +42,7 @@ import (
 	null "gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/api"
+	"github.com/loadimpact/k6/config"
 	"github.com/loadimpact/k6/core"
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/js"
@@ -121,26 +122,28 @@ a commandline interface for interacting with it.`,
 			return err
 		}
 
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags())
+		configFromCli := func() (config.Config, error) {
+			cliConf, err = getConfig(cmd.Flags())
+			if err != nil {
+				return config.Config{}, err
+			}
+			return cliConf, nil
+		}
+
+		conf, err := config.Get(config.FromFile(afero.NewOsFs()), configFromCli, config.FromEnv())
 		if err != nil {
 			return err
 		}
 
-		r, err := newRunner(src, runType, filesystems, runtimeOptions)
+		r, err := newRunner(src, runType, filesystems, conf)
 		if err != nil {
 			return err
 		}
+
+		// Update config with any options set in the script
+		conf = conf.Apply(Config{Options: r.GetOptions()})
 
 		fprintf(stdout, "%s options\r", initBar.String())
-
-		cliConf, err := getConfig(cmd.Flags())
-		if err != nil {
-			return err
-		}
-		conf, err := getConsolidatedConfig(afero.NewOsFs(), cliConf, r)
-		if err != nil {
-			return err
-		}
 
 		// If -m/--max isn't specified, figure out the max that should be needed.
 		if !conf.VUsMax.Valid {
@@ -506,13 +509,12 @@ func init() {
 
 // Creates a new runner.
 func newRunner(
-	src *loader.SourceData, typ string, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions,
-) (lib.Runner, error) {
+	src *loader.SourceData, typ string, filesystems map[string]afero.Fs, conf Config) (lib.Runner, error) {
 	switch typ {
 	case "":
-		return newRunner(src, detectType(src.Data), filesystems, rtOpts)
+		return newRunner(src, detectType(src.Data), filesystems, conf)
 	case typeJS:
-		return js.New(src, filesystems, rtOpts, runCompatMode)
+		return js.New(src, filesystems, conf)
 	case typeArchive:
 		arc, err := lib.ReadArchive(bytes.NewReader(src.Data))
 		if err != nil {
@@ -520,7 +522,7 @@ func newRunner(
 		}
 		switch arc.Type {
 		case typeJS:
-			return js.NewFromArchive(arc, rtOpts)
+			return js.NewFromArchive(arc, conf)
 		default:
 			return nil, errors.Errorf("archive requests unsupported runner: %s", arc.Type)
 		}
