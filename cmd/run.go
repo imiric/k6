@@ -70,8 +70,19 @@ var (
 	runType       = os.Getenv("K6_TYPE")
 	runNoSetup    = os.Getenv("K6_NO_SETUP") != ""
 	runNoTeardown = os.Getenv("K6_NO_TEARDOWN") != ""
-	runCompatMode = os.Getenv("K6_COMPATIBILITY_MODE")
 )
+
+// configFlagSet returns a FlagSet with the default run configuration flags.
+func configFlagSet() *pflag.FlagSet {
+	flags := pflag.NewFlagSet("", 0)
+	flags.SortFlags = false
+	flags.StringArrayP("out", "o", []string{}, "`uri` for an external metrics database")
+	flags.BoolP("linger", "l", false, "keep the API server alive past test end")
+	flags.Bool("no-usage-report", false, "don't send anonymous stats to the developers")
+	flags.Bool("no-thresholds", false, "don't run thresholds")
+	flags.Bool("no-summary", false, "don't show the summary at the end of the test")
+	return flags
+}
 
 // runCmd represents the run command.
 var runCmd = &cobra.Command{
@@ -123,14 +134,15 @@ a commandline interface for interacting with it.`,
 		}
 
 		configFromCli := func() (config.Config, error) {
-			cliConf, err = getConfig(cmd.Flags())
+			cliConf, err := getConfig(cmd.Flags())
 			if err != nil {
 				return config.Config{}, err
 			}
 			return cliConf, nil
 		}
 
-		conf, err := config.Get(config.FromFile(afero.NewOsFs()), configFromCli, config.FromEnv())
+		conf, err := config.Get(config.FromFile(afero.NewOsFs(), os.Getenv("K6_CONFIG")),
+			configFromCli, config.FromEnv())
 		if err != nil {
 			return err
 		}
@@ -141,7 +153,7 @@ a commandline interface for interacting with it.`,
 		}
 
 		// Update config with any options set in the script
-		conf = conf.Apply(Config{Options: r.GetOptions()})
+		conf = conf.Apply(config.Config{Options: r.GetOptions()})
 
 		fprintf(stdout, "%s options\r", initBar.String())
 
@@ -175,7 +187,7 @@ a commandline interface for interacting with it.`,
 			conf.Duration = types.NullDuration{}
 		}
 
-		conf, cerr := deriveAndValidateConfig(conf)
+		conf, cerr := config.DeriveAndValidate(conf)
 		if cerr != nil {
 			return ExitCode{cerr, invalidConfigErrorCode}
 		}
@@ -481,6 +493,7 @@ func runCmdFlagSet() *pflag.FlagSet {
 	flags.AddFlagSet(runtimeOptionFlagSet(true))
 	flags.AddFlagSet(configFlagSet())
 
+	var runCompatMode string // TODO: delete me
 	//TODO: Figure out a better way to handle the CLI flags:
 	// - the default values are specified in this way so we don't overwrire whatever
 	//   was specified via the environment variables
@@ -509,7 +522,7 @@ func init() {
 
 // Creates a new runner.
 func newRunner(
-	src *loader.SourceData, typ string, filesystems map[string]afero.Fs, conf Config) (lib.Runner, error) {
+	src *loader.SourceData, typ string, filesystems map[string]afero.Fs, conf config.Config) (lib.Runner, error) {
 	switch typ {
 	case "":
 		return newRunner(src, detectType(src.Data), filesystems, conf)

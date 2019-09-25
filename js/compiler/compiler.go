@@ -49,7 +49,8 @@ var (
 )
 
 // CompatibilityMode ...
-//go:generate enumer -type=CompatibilityMode -transform=snake -trimprefix CompatibilityMode -output compatibility_mode_gen.go
+//go:generate enumer -type=CompatibilityMode -transform=snake -trimprefix CompatibilityMode \
+//   -output compatibility_mode_gen.go
 type CompatibilityMode uint
 
 // CompatibilityMode ...
@@ -70,20 +71,21 @@ type Compiler struct {
 }
 
 // New constructs a new compiler.
-func New(compatMode CompatibilityMode) (*Compiler, error) {
+func New() (*Compiler, error) {
 	var err error
 	once.Do(func() {
-		compilerInstance, err = new(compatMode)
+		compilerInstance, err = new()
 	})
 
 	return compilerInstance, err
 }
 
-func new(compatMode CompatibilityMode) (*Compiler, error) {
+func new() (*Compiler, error) {
 	conf := rice.Config{
 		LocateOrder: []rice.LocateMethod{rice.LocateEmbedded},
 	}
 
+	compatMode := CompatibilityModeES6
 	c := &Compiler{vm: goja.New(), compatibilityMode: compatMode}
 
 	if compatMode == CompatibilityModeES6 {

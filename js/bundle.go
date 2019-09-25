@@ -26,6 +26,7 @@ import (
 	"net/url"
 	"runtime"
 
+	"github.com/loadimpact/k6/config"
 	"github.com/loadimpact/k6/lib/consts"
 
 	"github.com/dop251/goja"
@@ -59,8 +60,8 @@ type BundleInstance struct {
 }
 
 // NewBundle creates a new bundle from a source file and a filesystem.
-func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions, compatMode string) (*Bundle, error) {
-	compiler, err := compiler.New(compatMode)
+func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, conf config.Config) (*Bundle, error) {
+	compiler, err := compiler.New() // TODO: pass only compatibilityMode
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +79,7 @@ func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts l
 		Source:          code,
 		Program:         pgm,
 		BaseInitContext: NewInitContext(rt, compiler, new(context.Context), filesystems, loader.Dir(src.URL)),
-		Env:             rtOpts.Env,
+		Env:             map[string]string{}, // TODO: read conf.Env here
 	}
 	if err := bundle.instantiate(rt, bundle.BaseInitContext); err != nil {
 		return nil, err
@@ -128,7 +129,7 @@ func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts l
 }
 
 // NewBundleFromArchive creates a new bundle from an lib.Archive.
-func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle, error) {
+func NewBundleFromArchive(arc *lib.Archive, conf config.Config) (*Bundle, error) {
 	compiler, err := compiler.New()
 	if err != nil {
 		return nil, err
@@ -150,9 +151,9 @@ func NewBundleFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Bundle,
 		// Older archives (<=0.20.0) don't have an "env" property
 		env = make(map[string]string)
 	}
-	for k, v := range rtOpts.Env {
-		env[k] = v
-	}
+	// for k, v := range rtOpts.Env {
+	// 	env[k] = v
+	// }
 
 	bundle := &Bundle{
 		Filename:        arc.FilenameURL,

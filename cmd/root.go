@@ -25,7 +25,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/fatih/color"
@@ -47,14 +46,6 @@ var (
 	stdout    = consoleWriter{colorable.NewColorableStdout(), stdoutTTY, outMutex}
 	stderr    = consoleWriter{colorable.NewColorableStderr(), stderrTTY, outMutex}
 )
-
-const defaultConfigFileName = "config.json"
-
-//TODO: remove these global variables
-//nolint:gochecknoglobals
-var defaultConfigFilePath = defaultConfigFileName // Updated with the user's config folder in the init() function below
-//nolint:gochecknoglobals
-var configFilePath = os.Getenv("K6_CONFIG") // Overridden by `-c`/`--config` flag!
 
 var (
 	//TODO: have environment variables for configuring these? hopefully after we move away from global vars though...
@@ -95,6 +86,7 @@ func Execute() {
 }
 
 func rootCmdPersistentFlagSet() *pflag.FlagSet {
+	var configFilePath, defaultConfigFilePath string
 	flags := pflag.NewFlagSet("", pflag.ContinueOnError)
 	//TODO: figure out a better way to handle the CLI flags - global variables are not very testable... :/
 	flags.BoolVarP(&verbose, "verbose", "v", false, "enable debug logging")
@@ -113,17 +105,6 @@ func rootCmdPersistentFlagSet() *pflag.FlagSet {
 }
 
 func init() {
-	confDir, err := configDir()
-	if err != nil {
-		panic(err)
-	}
-	defaultConfigFilePath = filepath.Join(
-		confDir,
-		"loadimpact",
-		"k6",
-		defaultConfigFileName,
-	)
-
 	RootCmd.PersistentFlags().AddFlagSet(rootCmdPersistentFlagSet())
 }
 

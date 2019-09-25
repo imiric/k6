@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/loadimpact/k6/config"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/loader"
@@ -78,26 +79,29 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 			return err
 		}
 
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags())
+		configFromCli := func() (config.Config, error) {
+			cliConf, err := getConfig(cmd.Flags())
+			if err != nil {
+				return config.Config{}, err
+			}
+			return cliConf, nil
+		}
+
+		conf, err := config.Get(config.FromFile(afero.NewOsFs(), os.Getenv("K6_CONFIG")),
+			configFromCli, config.FromEnv())
 		if err != nil {
 			return err
 		}
 
-		r, err := newRunner(src, runType, filesystems, runtimeOptions)
+		r, err := newRunner(src, runType, filesystems, conf)
 		if err != nil {
 			return err
 		}
 
-		cliOpts, err := getOptions(cmd.Flags())
-		if err != nil {
-			return err
-		}
-		conf, err := getConsolidatedConfig(afero.NewOsFs(), Config{Options: cliOpts}, r)
-		if err != nil {
-			return err
-		}
+		// Update config with any options set in the script
+		conf = conf.Apply(config.Config{Options: r.GetOptions()})
 
-		derivedConf, cerr := deriveAndValidateConfig(conf)
+		conf, cerr := config.DeriveAndValidate(conf)
 		if cerr != nil {
 			return ExitCode{cerr, invalidConfigErrorCode}
 		}
@@ -108,7 +112,7 @@ This will execute the test on the Load Impact cloud service. Use "k6 login cloud
 		}
 
 		// Cloud config
-		cloudConfig := cloud.NewConfig().Apply(derivedConf.Collectors.Cloud)
+		cloudConfig := cloud.NewConfig().Apply(conf.Collectors.Cloud)
 		if err := envconfig.Process("k6", &cloudConfig); err != nil {
 			return err
 		}

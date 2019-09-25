@@ -23,6 +23,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/loadimpact/k6/config"
 	"github.com/loadimpact/k6/loader"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -58,26 +59,30 @@ An archive is a fully self-contained test run, and can be executed identically e
 			return err
 		}
 
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags())
+		configFromCli := func() (config.Config, error) {
+			cliConf, err := getConfig(cmd.Flags())
+			if err != nil {
+				return config.Config{}, err
+			}
+			return cliConf, nil
+		}
+
+		conf, err := config.Get(config.FromFile(afero.NewOsFs(), os.Getenv("K6_CONFIG")),
+			configFromCli, config.FromEnv())
 		if err != nil {
 			return err
 		}
 
-		r, err := newRunner(src, runType, filesystems, runtimeOptions)
+		r, err := newRunner(src, runType, filesystems, conf)
 		if err != nil {
 			return err
 		}
 
-		cliOpts, err := getOptions(cmd.Flags())
-		if err != nil {
-			return err
-		}
-		conf, err := getConsolidatedConfig(afero.NewOsFs(), Config{Options: cliOpts}, r)
-		if err != nil {
-			return err
-		}
+		// Update config with any options set in the script
+		conf = conf.Apply(config.Config{Options: r.GetOptions()})
 
-		if _, cerr := deriveAndValidateConfig(conf); cerr != nil {
+		conf, cerr := config.DeriveAndValidate(conf)
+		if cerr != nil {
 			return ExitCode{cerr, invalidConfigErrorCode}
 		}
 

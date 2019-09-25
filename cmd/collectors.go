@@ -27,6 +27,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/loadimpact/k6/config"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/loader"
@@ -64,7 +65,7 @@ func parseCollector(s string) (t, arg string) {
 	}
 }
 
-func newCollector(collectorName, arg string, src *loader.SourceData, conf Config) (lib.Collector, error) {
+func newCollector(collectorName, arg string, src *loader.SourceData, conf config.Config) (lib.Collector, error) {
 	getCollector := func() (lib.Collector, error) {
 		switch collectorName {
 		case collectorJSON:

@@ -25,6 +25,7 @@ import (
 
 	"gopkg.in/guregu/null.v3"
 
+	"github.com/loadimpact/k6/config"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/stats/cloud"
 	"github.com/loadimpact/k6/ui"
@@ -53,12 +54,7 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fs := afero.NewOsFs()
 
-		k6Conf, err := getConsolidatedConfig(fs, Config{}, nil)
-		if err != nil {
-			return err
-		}
-
-		currentDiskConf, configPath, err := readDiskConfig(fs)
+		conf, err := config.Get(config.FromFile(fs, os.Getenv("K6_CONFIG")))
 		if err != nil {
 			return err
 		}
@@ -67,7 +63,7 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 		reset := getNullBool(cmd.Flags(), "reset")
 		token := getNullString(cmd.Flags(), "token")
 
-		newCloudConf := cloud.NewConfig().Apply(currentDiskConf.Collectors.Cloud)
+		newCloudConf := cloud.NewConfig().Apply(conf.Collectors.Cloud)
 
 		switch {
 		case reset.Valid:
@@ -96,7 +92,7 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 			email := vals["Email"].(string)
 			password := vals["Password"].(string)
 
-			client := cloud.NewClient("", k6Conf.Collectors.Cloud.Host.String, consts.Version)
+			client := cloud.NewClient("", conf.Collectors.Cloud.Host.String, consts.Version)
 			res, err := client.Login(email, password)
 			if err != nil {
 				return err
@@ -109,8 +105,8 @@ This will set the default token used when just "k6 run -o cloud" is passed.`,
 			newCloudConf.Token = null.StringFrom(res.Token)
 		}
 
-		currentDiskConf.Collectors.Cloud = newCloudConf
-		if err := writeDiskConfig(fs, configPath, currentDiskConf); err != nil {
+		conf.Collectors.Cloud = newCloudConf
+		if err := conf.WriteToDisk(fs); err != nil {
 			return err
 		}
 

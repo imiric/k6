@@ -39,8 +39,8 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/time/rate"
 
+	"github.com/loadimpact/k6/config"
 	"github.com/loadimpact/k6/js/common"
-	"github.com/loadimpact/k6/js/compiler"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/loader"
@@ -71,16 +71,16 @@ type Runner struct {
 }
 
 // New returns a new Runner for the provide source
-func New(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions, compatMode compiler.CompatibilityMode) (*Runner, error) {
-	bundle, err := NewBundle(src, filesystems, rtOpts, compatMode)
+func New(src *loader.SourceData, filesystems map[string]afero.Fs, conf config.Config) (*Runner, error) {
+	bundle, err := NewBundle(src, filesystems, conf)
 	if err != nil {
 		return nil, err
 	}
 	return NewFromBundle(bundle)
 }
 
-func NewFromArchive(arc *lib.Archive, rtOpts lib.RuntimeOptions) (*Runner, error) {
-	bundle, err := NewBundleFromArchive(arc, rtOpts)
+func NewFromArchive(arc *lib.Archive, conf config.Config) (*Runner, error) {
+	bundle, err := NewBundleFromArchive(arc, conf)
 	if err != nil {
 		return nil, err
 	}

@@ -24,6 +24,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/loadimpact/k6/config"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats/influxdb"
 	"github.com/loadimpact/k6/ui"
@@ -42,12 +43,14 @@ This will set the default server used when just "-o influxdb" is passed.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fs := afero.NewOsFs()
-		config, configPath, err := readDiskConfig(fs)
+
+		fileConfig, err := config.Get(config.FromFile(fs, os.Getenv("K6_CONFIG")))
 		if err != nil {
 			return err
 		}
 
-		conf := influxdb.NewConfig().Apply(config.Collectors.InfluxDB)
+		conf := influxdb.NewConfig().Apply(fileConfig.Collectors.InfluxDB)
+
 		if len(args) > 0 {
 			urlConf, err := influxdb.ParseURL(args[0])
 			if err != nil {
@@ -104,8 +107,8 @@ This will set the default server used when just "-o influxdb" is passed.`,
 			return err
 		}
 
-		config.Collectors.InfluxDB = conf
-		return writeDiskConfig(fs, configPath, config)
+		fileConfig.Collectors.InfluxDB = conf
+		return fileConfig.WriteToDisk(fs)
 	},
 }
 

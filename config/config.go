@@ -31,7 +31,6 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
-	"github.com/spf13/pflag"
 	null "gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
@@ -45,25 +44,16 @@ import (
 	"github.com/loadimpact/k6/stats/statsd/common"
 )
 
-// configFlagSet returns a FlagSet with the default run configuration flags.
-func configFlagSet() *pflag.FlagSet {
-	flags := pflag.NewFlagSet("", 0)
-	flags.SortFlags = false
-	flags.StringArrayP("out", "o", []string{}, "`uri` for an external metrics database")
-	flags.BoolP("linger", "l", false, "keep the API server alive past test end")
-	flags.Bool("no-usage-report", false, "don't send anonymous stats to the developers")
-	flags.Bool("no-thresholds", false, "don't run thresholds")
-	flags.Bool("no-summary", false, "don't show the summary at the end of the test")
-	return flags
-}
+const defaultConfigFileName = "config.json"
 
 type Config struct {
 	lib.Options
 
 	// sourceEnv   *map[string]string
 	// sourceFlags *flag.FlagSet
-	sourceEnv *Config
-	sourceCli *Config
+	sourceEnv      *Config
+	sourceCli      *Config
+	sourceFilePath string
 
 	Out           []string  `json:"out" envconfig:"out"`
 	Linger        null.Bool `json:"linger" envconfig:"linger"`
@@ -113,45 +103,57 @@ func (c Config) Apply(cfg Config) Config {
 // an error will be returned.
 // If there's no custom config specified and no file exists in the default config path, it will
 // return an empty config struct, the default config location and *no* error.
-func readDiskConfig(fs afero.Fs) (Config, string, error) {
-	realConfigFilePath := configFilePath
+func ReadFromDisk(fs afero.Fs, path string) (Config, error) {
+	confDir, err := configDir()
+	if err != nil {
+		panic(err)
+	}
+	defaultConfigFilePath := filepath.Join(
+		confDir,
+		"loadimpact",
+		"k6",
+		defaultConfigFileName,
+	)
+	realConfigFilePath := path
 	if realConfigFilePath == "" {
 		// The user didn't specify K6_CONFIG or --config, use the default path
 		realConfigFilePath = defaultConfigFilePath
 	}
 
+	c := Config{sourceFilePath: realConfigFilePath}
+
 	// Try to see if the file exists in the supplied filesystem
 	if _, err := fs.Stat(realConfigFilePath); err != nil {
-		if os.IsNotExist(err) && configFilePath == "" {
+		if os.IsNotExist(err) && path == "" {
 			// If the file doesn't exist, but it was the default config file (i.e. the user
 			// didn't specify anything), silence the error
 			err = nil
 		}
-		return Config{}, realConfigFilePath, err
+		return c, err
 	}
 
 	data, err := afero.ReadFile(fs, realConfigFilePath)
 	if err != nil {
-		return Config{}, realConfigFilePath, err
+		return c, err
 	}
-	var conf Config
-	err = json.Unmarshal(data, &conf)
-	return conf, realConfigFilePath, err
+	err = json.Unmarshal(data, &c)
+	return c, err
 }
 
 // Serializes the configuration to a JSON file and writes it in the supplied
 // location on the supplied filesystem
-func writeDiskConfig(fs afero.Fs, configPath string, conf Config) error {
-	data, err := json.MarshalIndent(conf, "", "  ")
+func (c *Config) WriteToDisk(fs afero.Fs) error {
+	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	if err := fs.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+	// TODO: fixme
+	if err := fs.MkdirAll(filepath.Dir(c.sourceFilePath), 0755); err != nil {
 		return err
 	}
 
-	return afero.WriteFile(fs, configPath, data, 0644)
+	return afero.WriteFile(fs, c.sourceFilePath, data, 0644)
 }
 
 // Reads configuration variables from the environment.
@@ -261,9 +263,9 @@ func deriveExecutionConfig(conf Config) (Config, error) {
 
 type Getter func() (Config, error)
 
-func FromFile(fs afero.Fs) Getter {
+func FromFile(fs afero.Fs, path string) Getter {
 	return func() (Config, error) {
-		fileConf, _, err := readDiskConfig(fs)
+		fileConf, err := ReadFromDisk(fs, path)
 		if err != nil {
 			return Config{}, err
 		}
@@ -318,7 +320,7 @@ func applyDefault(conf Config) Config {
 	return conf
 }
 
-func deriveAndValidateConfig(conf Config) (Config, error) {
+func DeriveAndValidate(conf Config) (Config, error) {
 	result, err := deriveExecutionConfig(conf)
 	if err != nil {
 		return result, err

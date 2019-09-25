@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/loadimpact/k6/config"
 	"github.com/loadimpact/k6/js"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/loader"
@@ -54,7 +55,15 @@ var inspectCmd = &cobra.Command{
 			typ = detectType(src.Data)
 		}
 
-		runtimeOptions, err := getRuntimeOptions(cmd.Flags())
+		configFromCli := func() (config.Config, error) {
+			cliConf, err := getConfig(cmd.Flags())
+			if err != nil {
+				return config.Config{}, err
+			}
+			return cliConf, nil
+		}
+
+		conf, err := config.Get(configFromCli)
 		if err != nil {
 			return err
 		}
@@ -70,13 +79,13 @@ var inspectCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			b, err = js.NewBundleFromArchive(arc, runtimeOptions)
+			b, err = js.NewBundleFromArchive(arc, conf)
 			if err != nil {
 				return err
 			}
 			opts = b.Options
 		case typeJS:
-			b, err = js.NewBundle(src, filesystems, runtimeOptions)
+			b, err = js.NewBundle(src, filesystems, conf)
 			if err != nil {
 				return err
 			}
