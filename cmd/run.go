@@ -147,6 +147,11 @@ a commandline interface for interacting with it.`,
 			return err
 		}
 
+		conf, cerr := config.DeriveAndValidate(conf)
+		if cerr != nil {
+			return ExitCode{cerr, invalidConfigErrorCode}
+		}
+
 		r, err := newRunner(src, runType, filesystems, conf)
 		if err != nil {
 			return err
@@ -185,11 +190,6 @@ a commandline interface for interacting with it.`,
 		//TODO: just... handle this differently, e.g. as a part of the manual executor
 		if conf.Duration.Valid && conf.Duration.Duration == 0 {
 			conf.Duration = types.NullDuration{}
-		}
-
-		conf, cerr := config.DeriveAndValidate(conf)
-		if cerr != nil {
-			return ExitCode{cerr, invalidConfigErrorCode}
 		}
 
 		// If summary trend stats are defined, update the UI to reflect them

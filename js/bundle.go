@@ -49,7 +49,8 @@ type Bundle struct {
 
 	BaseInitContext *InitContext
 
-	Env map[string]string
+	Env               map[string]string
+	compatibilityMode compiler.CompatibilityMode
 }
 
 // A BundleInstance is a self-contained instance of a Bundle.
@@ -61,7 +62,12 @@ type BundleInstance struct {
 
 // NewBundle creates a new bundle from a source file and a filesystem.
 func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, conf config.Config) (*Bundle, error) {
-	compiler, err := compiler.New() // TODO: pass only compatibilityMode
+	cm, err := compiler.CompatibilityModeString(conf.CompatibilityMode.ValueOrZero())
+	if err != nil {
+		// This shouldn't happen, as the config should be valid at this point
+		return nil, err
+	}
+	compiler, err := compiler.New(cm)
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +81,12 @@ func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, conf con
 	// Make a bundle, instantiate it into a throwaway VM to populate caches.
 	rt := goja.New()
 	bundle := Bundle{
-		Filename:        src.URL,
-		Source:          code,
-		Program:         pgm,
-		BaseInitContext: NewInitContext(rt, compiler, new(context.Context), filesystems, loader.Dir(src.URL)),
-		Env:             map[string]string{}, // TODO: read conf.Env here
+		Filename:          src.URL,
+		Source:            code,
+		Program:           pgm,
+		BaseInitContext:   NewInitContext(rt, compiler, new(context.Context), filesystems, loader.Dir(src.URL)),
+		Env:               map[string]string{}, // TODO: read conf.Env here
+		compatibilityMode: cm,
 	}
 	if err := bundle.instantiate(rt, bundle.BaseInitContext); err != nil {
 		return nil, err
@@ -130,7 +137,12 @@ func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, conf con
 
 // NewBundleFromArchive creates a new bundle from an lib.Archive.
 func NewBundleFromArchive(arc *lib.Archive, conf config.Config) (*Bundle, error) {
-	compiler, err := compiler.New()
+	cm, err := compiler.CompatibilityModeString(conf.CompatibilityMode.ValueOrZero())
+	if err != nil {
+		// This shouldn't happen, as the config should be valid at this point
+		return nil, err
+	}
+	compiler, err := compiler.New(cm)
 	if err != nil {
 		return nil, err
 	}
@@ -156,12 +168,13 @@ func NewBundleFromArchive(arc *lib.Archive, conf config.Config) (*Bundle, error)
 	// }
 
 	bundle := &Bundle{
-		Filename:        arc.FilenameURL,
-		Source:          string(arc.Data),
-		Program:         pgm,
-		Options:         arc.Options,
-		BaseInitContext: initctx,
-		Env:             env,
+		Filename:          arc.FilenameURL,
+		Source:            string(arc.Data),
+		Program:           pgm,
+		Options:           arc.Options,
+		BaseInitContext:   initctx,
+		Env:               env,
+		compatibilityMode: cm,
 	}
 	if err := bundle.instantiate(bundle.BaseInitContext.runtime, bundle.BaseInitContext); err != nil {
 		return nil, err
@@ -236,8 +249,10 @@ func (b *Bundle) instantiate(rt *goja.Runtime, init *InitContext) error {
 	rt.SetFieldNameMapper(common.FieldNameMapper{})
 	rt.SetRandSource(common.NewRandSource())
 
-	if _, err := rt.RunProgram(jslib.GetCoreJS()); err != nil {
-		return err
+	if b.compatibilityMode == compiler.CompatibilityModeES6 {
+		if _, err := rt.RunProgram(jslib.GetCoreJS()); err != nil {
+			return err
+		}
 	}
 
 	exports := rt.NewObject()

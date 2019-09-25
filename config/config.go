@@ -336,13 +336,9 @@ func validateConfig(conf Config) error {
 		return nil
 	}
 
-	errMsgParts := []string{"There were problems with the specified script configuration:"}
+	errMsgParts := []string{"There were problems with the specified configuration:"}
 	for _, err := range errList {
 		errMsgParts = append(errMsgParts, fmt.Sprintf("\t- %s", err.Error()))
 	}
-	errMsg := errors.New(strings.Join(errMsgParts, "\n"))
-
-	//TODO: actually return the error here instead of warning, so k6 aborts on config validation errors
-	logrus.Warn(errMsg)
-	return nil
+	return errors.New(strings.Join(errMsgParts, "\n"))
 }

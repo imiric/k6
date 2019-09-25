@@ -71,21 +71,20 @@ type Compiler struct {
 }
 
 // New constructs a new compiler.
-func New() (*Compiler, error) {
+func New(compatMode CompatibilityMode) (*Compiler, error) {
 	var err error
 	once.Do(func() {
-		compilerInstance, err = new()
+		compilerInstance, err = new(compatMode)
 	})
 
 	return compilerInstance, err
 }
 
-func new() (*Compiler, error) {
+func new(compatMode CompatibilityMode) (*Compiler, error) {
 	conf := rice.Config{
 		LocateOrder: []rice.LocateMethod{rice.LocateEmbedded},
 	}
 
-	compatMode := CompatibilityModeES6
 	c := &Compiler{vm: goja.New(), compatibilityMode: compatMode}
 
 	if compatMode == CompatibilityModeES6 {

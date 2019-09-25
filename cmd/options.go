@@ -102,6 +102,7 @@ func getOptions(flags *pflag.FlagSet) (lib.Options, error) {
 		TeardownTimeout: types.NullDuration{Duration: types.Duration(10 * time.Second), Valid: false},
 
 		MetricSamplesBufferSize: null.NewInt(1000, false),
+		CompatibilityMode:       getNullString(flags, "compatibility-mode"),
 	}
 
 	// Using Changed() because GetStringSlice() doesn't differentiate between empty and no value

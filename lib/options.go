@@ -29,6 +29,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/loadimpact/k6/js/compiler"
 	"github.com/loadimpact/k6/lib/scheduler"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
@@ -483,6 +484,9 @@ func (o Options) Apply(opts Options) Options {
 	if opts.ConsoleOutput.Valid {
 		o.ConsoleOutput = opts.ConsoleOutput
 	}
+	if opts.CompatibilityMode.Valid {
+		o.CompatibilityMode = opts.CompatibilityMode
+	}
 
 	return o
 }
@@ -491,7 +495,20 @@ func (o Options) Apply(opts Options) Options {
 func (o Options) Validate() []error {
 	//TODO: validate all of the other options... that we should have already been validating...
 	//TODO: maybe integrate an external validation lib: https://github.com/avelino/awesome-go#validation
-	return o.Execution.Validate()
+
+	errors := o.Execution.Validate()
+
+	cmVal := o.CompatibilityMode.ValueOrZero()
+	if _, err := compiler.CompatibilityModeString(cmVal); err != nil {
+		var possibleValues []string
+		for _, v := range compiler.CompatibilityModeValues() {
+			possibleValues = append(possibleValues, v.String())
+		}
+		errors = append(errors, fmt.Errorf("invalid compatibility mode '%s'. Use: '%s'",
+			cmVal, strings.Join(possibleValues, "', '")))
+	}
+
+	return errors
 }
 
 // ForEachSpecified enumerates all struct fields and calls the supplied function with each
