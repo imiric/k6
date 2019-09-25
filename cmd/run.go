@@ -69,6 +69,7 @@ var (
 	runType       = os.Getenv("K6_TYPE")
 	runNoSetup    = os.Getenv("K6_NO_SETUP") != ""
 	runNoTeardown = os.Getenv("K6_NO_TEARDOWN") != ""
+	runCompatMode = os.Getenv("K6_COMPATIBILITY_MODE")
 )
 
 // runCmd represents the run command.
@@ -485,6 +486,8 @@ func runCmdFlagSet() *pflag.FlagSet {
 	//   variables will affect the usage message
 	// - and finally, global variables are not very testable... :/
 	flags.StringVarP(&runType, "type", "t", runType, "override file `type`, \"js\" or \"archive\"")
+	flags.StringVar(&runCompatMode, "compatibility-mode", "es6",
+		"JavaScript compiler compatibility mode, \"es6\" or \"es51\" (default \"es6\")")
 	flags.Lookup("type").DefValue = ""
 	flags.BoolVar(&runNoSetup, "no-setup", runNoSetup, "don't run setup()")
 	falseStr := "false" // avoiding goconst warnings...
