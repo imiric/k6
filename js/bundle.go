@@ -59,8 +59,8 @@ type BundleInstance struct {
 }
 
 // NewBundle creates a new bundle from a source file and a filesystem.
-func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions) (*Bundle, error) {
-	compiler, err := compiler.New()
+func NewBundle(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions, compatMode compiler.CompatibilityMode) (*Bundle, error) {
+	compiler, err := compiler.New(compatMode)
 	if err != nil {
 		return nil, err
 	}

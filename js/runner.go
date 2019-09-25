@@ -40,6 +40,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/loadimpact/k6/js/common"
+	"github.com/loadimpact/k6/js/compiler"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/loader"
@@ -70,8 +71,8 @@ type Runner struct {
 }
 
 // New returns a new Runner for the provide source
-func New(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions) (*Runner, error) {
-	bundle, err := NewBundle(src, filesystems, rtOpts)
+func New(src *loader.SourceData, filesystems map[string]afero.Fs, rtOpts lib.RuntimeOptions, compatMode compiler.CompatibilityMode) (*Runner, error) {
+	bundle, err := NewBundle(src, filesystems, rtOpts, compatMode)
 	if err != nil {
 		return nil, err
 	}
