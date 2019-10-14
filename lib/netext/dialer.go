@@ -100,7 +100,9 @@ func (d *Dialer) DialContext(ctx context.Context, proto, addr string) (net.Conn,
 
 // GetTrail creates a new NetTrail instance with the Dialer
 // sent and received data metrics and the supplied times and tags.
-func (d *Dialer) GetTrail(startTime, endTime time.Time, fullIteration bool, tags *stats.SampleTags) *NetTrail {
+func (d *Dialer) GetTrail(
+	startTime, endTime time.Time, fullIteration bool, emitIterations bool, tags *stats.SampleTags,
+) *NetTrail {
 	bytesWritten := atomic.SwapInt64(&d.BytesWritten, 0)
 	bytesRead := atomic.SwapInt64(&d.BytesRead, 0)
 	samples := []stats.Sample{
@@ -116,12 +118,6 @@ func (d *Dialer) GetTrail(startTime, endTime time.Time, fullIteration bool, tags
 			Value:  float64(bytesRead),
 			Tags:   tags,
 		},
-		{
-			Time:   endTime,
-			Metric: metrics.Iterations,
-			Value:  1,
-			Tags:   tags,
-		},
 	}
 	if fullIteration {
 		samples = append(samples, stats.Sample{
@@ -130,6 +126,14 @@ func (d *Dialer) GetTrail(startTime, endTime time.Time, fullIteration bool, tags
 			Value:  stats.D(endTime.Sub(startTime)),
 			Tags:   tags,
 		})
+		if emitIterations {
+			samples = append(samples, stats.Sample{
+				Time:   endTime,
+				Metric: metrics.Iterations,
+				Value:  1,
+				Tags:   tags,
+			})
+		}
 	}
 
 	return &NetTrail{
