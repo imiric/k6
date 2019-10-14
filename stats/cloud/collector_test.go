@@ -40,6 +40,7 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/lib/netext/httpext"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
@@ -231,6 +232,50 @@ func TestCloudCollector(t *testing.T) {
 		assert.InEpsilon(t, normal, stats.ToD(aggr.Avg), smallSkew)
 		assert.InEpsilon(t, normal, stats.ToD(aggr.Max), smallSkew)
 	}
+
+	simpleNetTrail := netext.NetTrail{
+		BytesRead:     100,
+		BytesWritten:  200,
+		FullIteration: true,
+		StartTime:     now.Add(-time.Minute),
+		EndTime:       now,
+		Tags:          tags,
+		Samples: []stats.Sample{
+			{
+				Time:   now,
+				Metric: metrics.DataSent,
+				Value:  float64(200),
+				Tags:   tags,
+			},
+			{
+				Time:   now,
+				Metric: metrics.DataReceived,
+				Value:  float64(100),
+				Tags:   tags,
+			},
+			{
+				Time:   now,
+				Metric: metrics.Iterations,
+				Value:  1,
+				Tags:   tags,
+			},
+		},
+	}
+	collector.Collect([]stats.SampleContainer{&simpleNetTrail})
+	expSamples <- []Sample{{
+		Type:   DataTypeMap,
+		Metric: "iter_li_all",
+		Data: &SampleDataMap{
+			Time: Timestamp(now),
+			Tags: tags,
+			Values: map[string]float64{
+				metrics.DataSent.Name:          float64(simpleNetTrail.BytesWritten),
+				metrics.DataReceived.Name:      float64(simpleNetTrail.BytesRead),
+				metrics.IterationDuration.Name: stats.D(simpleNetTrail.EndTime.Sub(simpleNetTrail.StartTime)),
+				metrics.Iterations.Name:        1,
+			},
+		},
+	}}
 
 	outlierTrail := skewTrail(simpleTrail, 2.0+smallSkew, 3.0+smallSkew)
 	trails = append(trails, &outlierTrail)
