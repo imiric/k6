@@ -28,7 +28,7 @@ func getTestConstantArrivalRateConfig() ConstantArrivalRateConfig {
 
 func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) {
 	t.Parallel()
-	var ctx, cancel, executor, logHook = setupExecutor(
+	var ctx, cancel, executor, logHook, _ = setupExecutor(
 		t, getTestConstantArrivalRateConfig(),
 		func(ctx context.Context, out chan<- stats.SampleContainer) error {
 			time.Sleep(time.Second)
@@ -52,7 +52,7 @@ func TestConstantArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) {
 func TestConstantArrivalRateRunCorrectRate(t *testing.T) {
 	t.Parallel()
 	var count int64
-	var ctx, cancel, executor, logHook = setupExecutor(
+	var ctx, cancel, executor, logHook, _ = setupExecutor(
 		t, getTestConstantArrivalRateConfig(),
 		func(ctx context.Context, out chan<- stats.SampleContainer) error {
 			atomic.AddInt64(&count, 1)
@@ -85,13 +85,13 @@ func TestArrivalRateCancel(t *testing.T) {
 	var mat = map[string]func(
 		*testing.T,
 		func(context.Context, chan<- stats.SampleContainer) error,
-	) (context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook){
+	) (context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook, *lib.ExecutionState){
 		"constant": func(t *testing.T, vuFn func(ctx context.Context, out chan<- stats.SampleContainer) error) (
-			context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) {
+			context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook, *lib.ExecutionState) {
 			return setupExecutor(t, getTestConstantArrivalRateConfig(), vuFn)
 		},
 		"variable": func(t *testing.T, vuFn func(ctx context.Context, out chan<- stats.SampleContainer) error) (
-			context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) {
+			context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook, *lib.ExecutionState) {
 			return setupExecutor(t, getTestVariableArrivalRateConfig(), vuFn)
 		},
 	}
@@ -101,7 +101,7 @@ func TestArrivalRateCancel(t *testing.T) {
 			var ch = make(chan struct{})
 			var errCh = make(chan error, 1)
 			var weAreDoneCh = make(chan struct{})
-			var ctx, cancel, executor, logHook = fn(
+			var ctx, cancel, executor, logHook, _ = fn(
 				t, func(ctx context.Context, out chan<- stats.SampleContainer) error {
 					select {
 					case <-ch:

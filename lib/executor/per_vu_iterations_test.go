@@ -25,7 +25,7 @@ func getTestPerVUIterationsConfig() PerVUIterationsConfig {
 func TestPerVUIterations(t *testing.T) {
 	t.Parallel()
 	var result sync.Map
-	var ctx, cancel, executor, _ = setupExecutor(
+	var ctx, cancel, executor, _, _ = setupExecutor(
 		t, getTestPerVUIterationsConfig(),
 		func(ctx context.Context, out chan<- stats.SampleContainer) error {
 			state := lib.GetState(ctx)

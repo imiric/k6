@@ -16,7 +16,7 @@ import (
 func setupExecutor(
 	t *testing.T, config lib.ExecutorConfig,
 	vuFn func(context.Context, chan<- stats.SampleContainer) error,
-) (context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook) {
+) (context.Context, context.CancelFunc, lib.Executor, *testutils.SimpleLogrusHook, *lib.ExecutionState) {
 	ctx, cancel := context.WithCancel(context.Background())
 	logHook := &testutils.SimpleLogrusHook{HookedLevels: []logrus.Level{logrus.WarnLevel}}
 	testLog := logrus.New()
@@ -32,25 +32,24 @@ func setupExecutor(
 		return &lib.MiniRunnerVU{R: runner, ID: rand.Int63()}, nil
 	})
 
-	initializeVUs(ctx, t, logEntry, es, 10)
+	segment := es.Options.ExecutionSegment
+	maxVUs := lib.GetMaxPossibleVUs(config.GetExecutionRequirements(segment))
+	initializeVUs(ctx, t, logEntry, es, maxVUs)
 
 	executor, err := config.NewExecutor(es, logEntry)
 	require.NoError(t, err)
+
 	err = executor.Init(ctx)
 	require.NoError(t, err)
-	return ctx, cancel, executor, logHook
+	return ctx, cancel, executor, logHook, es
 }
 
 func initializeVUs(
-	ctx context.Context, t testing.TB, logEntry *logrus.Entry, es *lib.ExecutionState, number int,
+	ctx context.Context, t testing.TB, logEntry *logrus.Entry, es *lib.ExecutionState, number uint64,
 ) {
-	for i := 0; i < number; i++ {
-		require.EqualValues(t, i, es.GetInitializedVUsCount())
+	for i := uint64(0); i < number; i++ {
 		vu, err := es.InitializeNewVU(ctx, logEntry)
 		require.NoError(t, err)
-		require.EqualValues(t, i+1, es.GetInitializedVUsCount())
-		es.ReturnVU(vu, false)
-		require.EqualValues(t, 0, es.GetCurrentlyActiveVUsCount())
-		require.EqualValues(t, i+1, es.GetInitializedVUsCount())
+		es.AddInitializedVU(vu)
 	}
 }

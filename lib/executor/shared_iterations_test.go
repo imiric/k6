@@ -24,7 +24,7 @@ func getTestSharedIterationsConfig() SharedIterationsConfig {
 func TestSharedIterationsRun(t *testing.T) {
 	t.Parallel()
 	var doneIters uint64
-	var ctx, cancel, executor, _ = setupExecutor(
+	var ctx, cancel, executor, _, _ = setupExecutor(
 		t, getTestSharedIterationsConfig(),
 		func(ctx context.Context, out chan<- stats.SampleContainer) error {
 			atomic.AddUint64(&doneIters, 1)

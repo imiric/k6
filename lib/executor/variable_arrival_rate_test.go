@@ -222,7 +222,7 @@ func getTestVariableArrivalRateConfig() VariableArrivalRateConfig {
 
 func TestVariableArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) {
 	t.Parallel()
-	var ctx, cancel, executor, logHook = setupExecutor(
+	var ctx, cancel, executor, logHook, _ = setupExecutor(
 		t, getTestVariableArrivalRateConfig(),
 		func(ctx context.Context, out chan<- stats.SampleContainer) error {
 			time.Sleep(time.Second)
@@ -246,7 +246,7 @@ func TestVariableArrivalRateRunNotEnoughAllocatedVUsWarn(t *testing.T) {
 func TestVariableArrivalRateRunCorrectRate(t *testing.T) {
 	t.Parallel()
 	var count int64
-	var ctx, cancel, executor, logHook = setupExecutor(
+	var ctx, cancel, executor, logHook, _ = setupExecutor(
 		t, getTestVariableArrivalRateConfig(),
 		func(ctx context.Context, out chan<- stats.SampleContainer) error {
 			atomic.AddInt64(&count, 1)
