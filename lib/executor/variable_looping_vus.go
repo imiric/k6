@@ -341,7 +341,7 @@ func (vlvc VariableLoopingVUsConfig) reserveVUsForGracefulRampDowns( //nolint:fu
 	lastPlannedVUs := uint64(0)
 	for rawStepNum := 0; rawStepNum < rawStepsLen; rawStepNum++ {
 		rawStep := rawSteps[rawStepNum]
-		// Add the first step or any step where the number of planned VUs us
+		// Add the first step or any step where the number of planned VUs is
 		// greater than the ones in the previous step. We don't need to worry
 		// about reserving time for ramping-down VUs when the number of planned
 		// VUs is growing. That's because the gracefulRampDown period is a fixed
@@ -358,7 +358,7 @@ func (vlvc VariableLoopingVUsConfig) reserveVUsForGracefulRampDowns( //nolint:fu
 			continue
 		}
 
-		// If we're here, we have a downward "slope" - thelastPlannedVUs are
+		// If we're here, we have a downward "slope" - the lastPlannedVUs are
 		// more than the current rawStep's planned VUs. We're going to look
 		// forward in time (up to gracefulRampDown) and inspect the rawSteps.
 		// There are a 3 possibilities:
@@ -475,7 +475,7 @@ var _ lib.Executor = &VariableLoopingVUs{}
 //
 // TODO: split up? since this does a ton of things, unfortunately I can't think
 // of a less complex way to implement it (besides the old "increment by 100ms
-// and see what happens)... :/ so maybe see how it can be spit?
+// and see what happens)... :/ so maybe see how it can be split?
 // nolint:funlen,gocognit
 func (vlv VariableLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleContainer) (err error) {
 	segment := vlv.executionState.Options.ExecutionSegment
