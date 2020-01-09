@@ -70,6 +70,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:315e4b8ed283b1a328ca4b890c2c34763a23b4406e010c1c35abb70e5b45017b"
+  name = "github.com/apoorvam/goterminal"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "614d345c47e510f5bc95fef660f25d0c00d224e4"
+
+[[projects]]
+  branch = "master"
   digest = "1:8a49786ec8f770dc1fdc251970f86e1f12b4938cf52b261ffa6f66158670c8c7"
   name = "github.com/daaku/go.zipexe"
   packages = ["."]
@@ -684,6 +692,7 @@
     "github.com/Shopify/sarama",
     "github.com/Soontao/goHttpDigestClient",
     "github.com/andybalholm/brotli",
+    "github.com/apoorvam/goterminal",
     "github.com/dop251/goja",
     "github.com/dop251/goja/parser",
     "github.com/dustin/go-humanize",

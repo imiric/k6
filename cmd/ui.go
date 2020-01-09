@@ -25,9 +25,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/apoorvam/goterminal"
 
 	"github.com/loadimpact/k6/core/local"
 	"github.com/loadimpact/k6/lib"
@@ -81,13 +82,7 @@ func printBar(bar *pb.ProgressBar, rightText string) {
 	fprintf(stdout, "%s %s%s", bar.Render(0, 0), rightText, end)
 }
 
-func renderMultipleBars(isTTY, goBack bool, pbs []*pb.ProgressBar) string {
-	lineEnd := "\n"
-	if isTTY {
-		//TODO: check for cross platform support
-		lineEnd = "\x1b[K\n" // erase till end of line
-	}
-
+func renderMultipleBars(pbs []*pb.ProgressBar) []string {
 	var leftPad int
 	for _, pb := range pbs {
 		l := pb.Left()
@@ -98,20 +93,12 @@ func renderMultipleBars(isTTY, goBack bool, pbs []*pb.ProgressBar) string {
 	// Floor padding to maximum left text length
 	leftPad = int(lib.Min(int64(leftPad), maxLeftLength))
 
-	pbsCount := len(pbs)
-	result := make([]string, pbsCount+2)
-	result[0] = lineEnd // start with an empty line
+	result := make([]string, len(pbs))
 	for i, pb := range pbs {
-		result[i+1] = pb.Render(leftPad, maxLeftLength) + lineEnd
+		result[i] = pb.Render(leftPad, maxLeftLength)
 	}
-	if isTTY && goBack {
-		// Go back to the beginning
-		//TODO: check for cross platform support
-		result[pbsCount+1] = fmt.Sprintf("\r\x1b[%dA", pbsCount+1)
-	} else {
-		result[pbsCount+1] = "\n"
-	}
-	return strings.Join(result, "")
+
+	return result
 }
 
 //TODO: show other information here?
@@ -127,10 +114,13 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 		pbs = append(pbs, s.GetProgress())
 	}
 
-	// For flicker-free progressbars!
-	progressBarsLastRender := []byte(renderMultipleBars(stdoutTTY, true, pbs))
-	progressBarsPrint := func() {
-		_, _ = stdout.Writer.Write(progressBarsLastRender)
+	writer := goterminal.New(stdout.Writer)
+
+	printProgressBars := func() {
+		for _, line := range renderMultipleBars(pbs) {
+			fmt.Fprintf(writer, "%s\n", line)
+		}
+		writer.Print()
 	}
 
 	//TODO: make configurable?
@@ -140,8 +130,8 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 	if stdoutTTY && !noColor {
 		updateFreq = 100 * time.Millisecond
 		outMutex.Lock()
-		stdout.PersistentText = progressBarsPrint
-		stderr.PersistentText = progressBarsPrint
+		stdout.PersistentText = printProgressBars
+		stderr.PersistentText = printProgressBars
 		outMutex.Unlock()
 		defer func() {
 			outMutex.Lock()
@@ -149,10 +139,10 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 			stderr.PersistentText = nil
 			if ctx.Err() != nil {
 				// Render a last plain-text progressbar in an error
-				progressBarsLastRender = []byte(renderMultipleBars(stdoutTTY, false, pbs))
-				progressBarsPrint()
+				printProgressBars()
 			}
 			outMutex.Unlock()
+			writer.Reset()
 		}()
 	}
 
@@ -161,12 +151,11 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 	for {
 		select {
 		case <-ticker.C:
-			barText := renderMultipleBars(stdoutTTY, true, pbs)
-			outMutex.Lock()
-			progressBarsLastRender = []byte(barText)
-			progressBarsPrint()
-			outMutex.Unlock()
+			printProgressBars()
+			time.Sleep(updateFreq)
+			writer.Clear()
 		case <-ctxDone:
+			writer.Reset()
 			return
 		}
 	}
