@@ -152,7 +152,6 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 		select {
 		case <-ticker.C:
 			printProgressBars()
-			time.Sleep(updateFreq)
 			writer.Clear()
 		case <-ctxDone:
 			writer.Reset()

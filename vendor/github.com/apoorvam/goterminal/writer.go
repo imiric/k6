@@ -1,6 +1,7 @@
 package goterminal
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"sync"
@@ -13,7 +14,7 @@ var termWidth int
 
 // Writer represents the IO writer which updates the UI and holds the buffer.
 type Writer struct {
-	Out       io.Writer
+	Out       *bufio.Writer
 	Buf       bytes.Buffer
 	lineCount int
 	mtx       sync.Mutex
@@ -21,7 +22,8 @@ type Writer struct {
 
 // New returns a new instance of the Writer. It initializes the terminal width and buffer.
 func New(out io.Writer) *Writer {
-	writer := &Writer{Out: out}
+	wb := bufio.NewWriter(out)
+	writer := &Writer{Out: wb}
 	if termWidth == 0 {
 		termWidth, _ = writer.GetTermDimensions()
 	}
@@ -40,7 +42,11 @@ func (w *Writer) Reset() {
 // It stores the number of lines to go up the Writer in the Writer.lineCount.
 func (w *Writer) Print() error {
 	w.mtx.Lock()
-	defer w.mtx.Unlock()
+	defer func() {
+		w.Out.Flush()
+		w.Buf.Reset()
+		w.mtx.Unlock()
+	}()
 	// do nothing if buffer is empty
 	if len(w.Buf.Bytes()) == 0 {
 		return nil
@@ -59,8 +65,8 @@ func (w *Writer) Print() error {
 			}
 		}
 	}
+
 	_, err := w.Out.Write(w.Buf.Bytes())
-	w.Buf.Reset()
 	return err
 }
 
