@@ -130,11 +130,12 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 
 // Render locks the progressbar struct for reading and calls all of its methods
 // to assemble the progress bar and return it as a string.
+// - isTTY writes ANSI escape sequences to clean up the terminal output if true.
 // - leftMax defines the maximum character length of the left-side
 //   text, as well as the padding between the text and the opening
 //   square bracket. Characters exceeding this length will be replaced
 //   with a single ellipsis. Passing <=0 disables this.
-func (pb *ProgressBar) Render(leftMax int) string {
+func (pb *ProgressBar) Render(isTTY bool, leftMax int) string {
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
@@ -183,6 +184,13 @@ func (pb *ProgressBar) Render(leftMax int) string {
 			right = ""
 		}
 		padding = pb.color.Sprint(padding)
+	}
+
+	if isTTY {
+		// Ensure right side is clear of garbage text that might be introduced
+		// by errors or logging messages. This is needed in addition to the
+		// optional clear after the right text because of the use of tabs.
+		right = "\x1b[K" + right
 	}
 
 	return fmt.Sprintf("%s [%s%s%s]%s",
