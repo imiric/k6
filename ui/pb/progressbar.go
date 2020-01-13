@@ -174,7 +174,15 @@ func (pb *ProgressBar) Render(leftMax int) string {
 
 	padding := ""
 	if space > filled {
-		padding = pb.color.Sprint(strings.Repeat("-", space-filled))
+		padding = strings.Repeat("-", space-filled)
+		if progress == 0 && strings.Contains(right, "waiting") {
+			right = fmt.Sprintf(" %s ", strings.Trim(right, " "))
+			// Center text inside progress bar
+			idxStart := (space - len(right)) / 2
+			padding = padding[:idxStart] + right + padding[idxStart+len(right):]
+			right = ""
+		}
+		padding = pb.color.Sprint(padding)
 	}
 
 	return fmt.Sprintf("%s [%s%s%s]%s",
