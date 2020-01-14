@@ -29,9 +29,10 @@ import (
 
 	"github.com/loadimpact/k6/ui/pb"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/stats"
-	"github.com/sirupsen/logrus"
 )
 
 // ExecutionScheduler is the local implementation of lib.ExecutionScheduler
@@ -292,7 +293,7 @@ func (e *ExecutionScheduler) runExecutor(
 		startTime := time.Now()
 		executorProgress.Modify(pb.WithProgress(func() (float64, string) {
 			remWait := (executorStartTime - time.Since(startTime))
-			return 0, fmt.Sprintf("waiting %s", pb.GetFixedLengthDuration(remWait, executorStartTime))
+			return 0, fmt.Sprintf("waiting\t%s", pb.GetFixedLengthDuration(remWait, executorStartTime))
 		}))
 
 		executorLogger.Debugf("Waiting for executor start time...")
