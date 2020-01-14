@@ -32,6 +32,16 @@ import (
 const defaultWidth = 40
 const defaultBarColor = color.Faint
 
+type Status string
+
+const (
+	Running     Status = " "
+	Waiting     Status = "•"
+	Stopping    Status = "↓"
+	Interrupted Status = "✗"
+	Done        Status = "✓"
+)
+
 // ProgressBar is just a simple thread-safe progressbar implementation with
 // callbacks.
 type ProgressBar struct {
@@ -39,6 +49,7 @@ type ProgressBar struct {
 	width  int
 	color  *color.Color
 	logger *logrus.Entry
+	status Status
 
 	left     func() string
 	progress func() (progress float64, right string)
@@ -69,6 +80,11 @@ func WithLogger(logger *logrus.Entry) ProgressBarOption {
 // WithProgress modifies the progress calculation function.
 func WithProgress(progress func() (float64, string)) ProgressBarOption {
 	return func(pb *ProgressBar) { pb.progress = progress }
+}
+
+// WithStatus modifies the progressbar status
+func WithStatus(status Status) ProgressBarOption {
+	return func(pb *ProgressBar) { pb.status = status }
 }
 
 // WithConstProgress sets the progress and right padding to the supplied consts.
@@ -185,6 +201,6 @@ func (pb *ProgressBar) Render(isTTY bool, leftMax int) string {
 		right = "\x1b[K" + right
 	}
 
-	return fmt.Sprintf("%s [%s%s%s]%s",
-		pb.renderLeft(leftMax), filling, caret, padding, right)
+	return fmt.Sprintf("%s%2s [%s%s%s]%s\t",
+		pb.renderLeft(leftMax), pb.status, filling, caret, padding, right)
 }

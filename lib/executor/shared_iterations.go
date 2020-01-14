@@ -182,7 +182,7 @@ func (si SharedIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 		)
 	}
 	si.progress.Modify(pb.WithProgress(progresFn))
-	go trackProgress(ctx, maxDurationCtx, regDurationCtx, si, progresFn)
+	go trackProgress(ctx, maxDurationCtx, regDurationCtx, si)
 
 	// Actually schedule the VUs and iterations...
 	activeVUs := &sync.WaitGroup{}

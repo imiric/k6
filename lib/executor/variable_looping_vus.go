@@ -524,7 +524,7 @@ func (vlv VariableLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleCo
 		return float64(spent) / float64(regularDuration), status
 	}
 	vlv.progress.Modify(pb.WithProgress(progresFn))
-	go trackProgress(ctx, maxDurationCtx, regDurationCtx, vlv, progresFn)
+	go trackProgress(ctx, maxDurationCtx, regDurationCtx, vlv)
 
 	// Actually schedule the VUs and iterations, likely the most complicated
 	// executor among all of them...

@@ -374,7 +374,7 @@ func (varr VariableArrivalRate) Run(ctx context.Context, out chan<- stats.Sample
 		)
 	}
 	varr.progress.Modify(pb.WithProgress(progresFn))
-	go trackProgress(ctx, maxDurationCtx, regDurationCtx, varr, progresFn)
+	go trackProgress(ctx, maxDurationCtx, regDurationCtx, varr)
 
 	regDurationDone := regDurationCtx.Done()
 	runIterationBasic := getIterationRunner(varr.executionState, varr.logger, out)

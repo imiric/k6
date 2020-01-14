@@ -166,7 +166,7 @@ func (clv ConstantLoopingVUs) Run(ctx context.Context, out chan<- stats.SampleCo
 		)
 	}
 	clv.progress.Modify(pb.WithProgress(progresFn))
-	go trackProgress(ctx, maxDurationCtx, regDurationCtx, clv, progresFn)
+	go trackProgress(ctx, maxDurationCtx, regDurationCtx, clv)
 
 	// Actually schedule the VUs and iterations...
 	activeVUs := &sync.WaitGroup{}

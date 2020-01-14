@@ -178,7 +178,7 @@ func (pvi PerVUIterations) Run(ctx context.Context, out chan<- stats.SampleConta
 		)
 	}
 	pvi.progress.Modify(pb.WithProgress(progresFn))
-	go trackProgress(ctx, maxDurationCtx, regDurationCtx, pvi, progresFn)
+	go trackProgress(ctx, maxDurationCtx, regDurationCtx, pvi)
 
 	// Actually schedule the VUs and iterations...
 	activeVUs := &sync.WaitGroup{}

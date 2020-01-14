@@ -516,7 +516,7 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 	}
 
 	mex.progress.Modify(pb.WithProgress(runState.progresFn)) // Keep track of the progress
-	go trackProgress(parentCtx, ctx, ctx, mex, runState.progresFn)
+	go trackProgress(parentCtx, ctx, ctx, mex)
 
 	err = runState.handleConfigChange( // Start by setting MaxVUs to the starting MaxVUs
 		ExternallyControlledConfigParams{MaxVUs: mex.config.MaxVUs}, currentControlConfig,

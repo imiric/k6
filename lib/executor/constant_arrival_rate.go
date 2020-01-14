@@ -239,7 +239,7 @@ func (car ConstantArrivalRate) Run(ctx context.Context, out chan<- stats.SampleC
 		)
 	}
 	car.progress.Modify(pb.WithProgress(progresFn))
-	go trackProgress(ctx, maxDurationCtx, regDurationCtx, car, progresFn)
+	go trackProgress(ctx, maxDurationCtx, regDurationCtx, car)
 
 	regDurationDone := regDurationCtx.Done()
 	runIterationBasic := getIterationRunner(car.executionState, car.logger, out)
