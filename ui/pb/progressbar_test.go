@@ -81,16 +81,6 @@ func TestProgressBarRender(t *testing.T) {
 			WithHijack(func() string { return "progressbar hijack!" }),
 		},
 			"progressbar hijack!"},
-		{[]ProgressBarOption{
-			WithLeft(func() string { return "left" }),
-			WithProgress(func() (float64, string) { return 0, "waiting" }),
-		},
-			"left [-------------- waiting ---------------]"},
-		{[]ProgressBarOption{
-			WithLeft(func() string { return "left" }),
-			WithProgress(func() (float64, string) { return 0, "waiting 20.0s" }),
-		},
-			"left [----------- waiting 20.0s ------------]"},
 	}
 
 	for _, tc := range testCases {
