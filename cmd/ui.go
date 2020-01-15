@@ -78,8 +78,9 @@ func printBar(bar *pb.ProgressBar, rightText string) {
 		// TODO: check for cross platform support
 		end = "\x1b[0K\r"
 	}
-	leftText, _ := bar.Render(0)
-	fprintf(stdout, "%s %s%s", leftText, rightText, end)
+	rendered := bar.Render(0)
+	// Only output the left and middle part of the progress
+	fprintf(stdout, "%s %s %s%s", rendered[0], rendered[2], rightText, end)
 }
 
 func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) string {
@@ -95,28 +96,37 @@ func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) 
 	// TODO: simplify this...
 	var (
 		maxRightFirstColLen int
-		rightCols           [][]string
+		rendered            [][]string
 	)
-	for i, pb := range pbs {
-		leftRen, rightRen := pb.Render(leftMax)
-		if len(rightRen) > 0 && len(rightRen[0]) > maxRightFirstColLen {
-			maxRightFirstColLen = len(rightRen[0])
+	// First pass to render all progressbars and get the maximum length of
+	// the first right-side column.
+	for _, pb := range pbs {
+		ren := pb.Render(leftMax)
+		rendered = append(rendered, ren)
+		if len(ren) > 3 && len(ren[3]) > maxRightFirstColLen {
+			maxRightFirstColLen = len(ren[3])
 		}
-		rightCols = append(rightCols, rightRen)
-		result[i+1] = leftRen
 	}
 
-	// Render right side columns with appropriate padding
-	for i, rc := range rightCols {
-		var rightText string
-		if len(rc) > 0 {
-			padFmt := fmt.Sprintf(" %%-%ds", maxRightFirstColLen+2)
-			rightText = fmt.Sprintf(padFmt, rc[0])
-			if len(rc) == 2 {
-				rightText = rightText + fmt.Sprintf("%s", rc[1])
+	// Second pass to render final output, applying padding where needed
+	for i, ren := range rendered {
+		var leftText, middleText, rightText string
+		leftPadFmt := fmt.Sprintf("%%-%ds", leftMax)
+		leftText = fmt.Sprintf(leftPadFmt, ren[0])
+		if len(ren) > 1 {
+			leftText = leftText + fmt.Sprintf(" %s ", ren[1])
+		}
+		if len(ren) > 2 {
+			middleText = ren[2]
+			if len(ren) > 3 {
+				rightPadFmt := fmt.Sprintf(" %%-%ds", maxRightFirstColLen+2)
+				rightText = fmt.Sprintf(rightPadFmt, ren[3])
+				if len(ren) == 5 {
+					rightText = rightText + fmt.Sprintf("%s", ren[4])
+				}
 			}
 		}
-		result[i+1] = result[i+1] + rightText + lineEnd
+		result[i+1] = leftText + middleText + rightText + lineEnd
 	}
 
 	if isTTY && goBack {
@@ -144,19 +154,17 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 
 	// Get the longest left side string length, to align progress bars
 	// horizontally and trim excess text.
-	var leftLen int
+	var leftLen int64
 	for _, pb := range pbs {
 		l := pb.Left()
-		if len(l) > leftLen {
-			leftLen = len(l)
-		}
+		leftLen = lib.Max(int64(len(l)), leftLen)
 	}
 
 	// Limit to maximum left text length
-	leftLen = int(lib.Min(int64(leftLen), maxLeftLength))
+	leftMax := int(lib.Min(leftLen, maxLeftLength))
 
 	// For flicker-free progressbars!
-	progressBarsLastRender := []byte(renderMultipleBars(stdoutTTY, true, leftLen, pbs))
+	progressBarsLastRender := []byte(renderMultipleBars(stdoutTTY, true, leftMax, pbs))
 	progressBarsPrint := func() {
 		_, _ = stdout.Writer.Write(progressBarsLastRender)
 	}
@@ -177,7 +185,7 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 			stderr.PersistentText = nil
 			if ctx.Err() != nil {
 				// Render a last plain-text progressbar in an error
-				progressBarsLastRender = []byte(renderMultipleBars(stdoutTTY, false, leftLen, pbs))
+				progressBarsLastRender = []byte(renderMultipleBars(stdoutTTY, false, leftMax, pbs))
 				progressBarsPrint()
 			}
 			outMutex.Unlock()
@@ -189,7 +197,7 @@ func showProgress(ctx context.Context, conf Config, execScheduler *local.Executi
 	for {
 		select {
 		case <-ticker.C:
-			barText := renderMultipleBars(stdoutTTY, true, leftLen, pbs)
+			barText := renderMultipleBars(stdoutTTY, true, leftMax, pbs)
 			outMutex.Lock()
 			progressBarsLastRender = []byte(barText)
 			progressBarsPrint()

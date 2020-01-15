@@ -119,9 +119,8 @@ func (pb *ProgressBar) Left() string {
 	return pb.renderLeft(0)
 }
 
-// renderLeft renders the left part of the progressbar, applying the
-// given padding and trimming text exceeding maxLen length,
-// replacing it with an ellipsis.
+// renderLeft renders the left part of the progressbar, replacing text
+// exceeding maxLen with an ellipsis.
 func (pb *ProgressBar) renderLeft(maxLen int) string {
 	var left string
 	if pb.left != nil {
@@ -129,8 +128,7 @@ func (pb *ProgressBar) renderLeft(maxLen int) string {
 		if maxLen > 0 && len(l) > maxLen {
 			l = l[:maxLen-3] + "..."
 		}
-		padFmt := fmt.Sprintf("%%-%ds", maxLen)
-		left = fmt.Sprintf(padFmt, l)
+		left = l
 	}
 	return left
 }
@@ -144,23 +142,29 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 	}
 }
 
-// Render locks the progressbar struct for reading and calls all of its methods
-// to assemble the progress bar and return it as a string.
-// - isTTY writes ANSI escape sequences to clean up the terminal output if true.
+// Render locks the progressbar struct for reading and calls all of
+// its methods to assemble the progress bar and return it as an array
+// of strings. Returning an array allows the output writer to properly
+// pad and align all elements across multiple progress bars.
 // - leftMax defines the maximum character length of the left-side
 //   text. Characters exceeding this length will be replaced with a
 //   single ellipsis. Passing <=0 disables this.
-func (pb *ProgressBar) Render(leftMax int) (string, []string) {
+// The returned array consists of:
+// - [0] is the left side (progress bar title)
+// - [1] is the progress status symbol
+// - [2] is the progress bar itself
+// - [2:] are the *optional* right-side elements (columns)
+func (pb *ProgressBar) Render(leftMax int) []string {
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
 	if pb.hijack != nil {
-		return pb.hijack(), []string{}
+		return []string{pb.hijack()}
 	}
 
 	var (
-		progress float64
-		right    []string
+		progress   float64
+		out, right []string
 	)
 	if pb.progress != nil {
 		progress, right = pb.progress()
@@ -192,6 +196,9 @@ func (pb *ProgressBar) Render(leftMax int) (string, []string) {
 		padding = pb.color.Sprint(strings.Repeat("-", space-filled))
 	}
 
-	return fmt.Sprintf("%s%2s [%s%s%s]",
-		pb.renderLeft(leftMax), pb.status, filling, caret, padding), right
+	out = append(out, pb.renderLeft(leftMax), string(pb.status))
+	out = append(out, fmt.Sprintf("[%s%s%s]", filling, caret, padding))
+	out = append(out, right...)
+
+	return out
 }
