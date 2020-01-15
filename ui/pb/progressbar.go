@@ -148,9 +148,7 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 }
 
 // ProgressBarRender stores the different rendered parts of the
-// progress bar UI. This partitioning is done (vs Render() returning a
-// plain string) to allow dynamic padding and positioning of elements
-// depending on other elements on the screen.
+// progress bar UI.
 type ProgressBarRender struct {
 	Left, Status, Progress string
 	Right                  []string
@@ -162,7 +160,9 @@ func (pbr ProgressBarRender) String() string {
 }
 
 // Render locks the progressbar struct for reading and calls all of
-// its methods to returned the final output.
+// its methods to return the final output. A struct is returned over a
+// plain string to allow dynamic padding and positioning of elements
+// depending on other elements on the screen.
 // - leftMax defines the maximum character length of the left-side
 //   text. Characters exceeding this length will be replaced with a
 //   single ellipsis. Passing <=0 disables this.
