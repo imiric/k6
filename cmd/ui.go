@@ -25,8 +25,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
-	"text/tabwriter"
 	"time"
 
 	"github.com/loadimpact/k6/core/local"
@@ -88,23 +88,20 @@ func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) 
 		lineEnd = "\x1b[K\n" // erase till end of line
 	}
 
-	var render bytes.Buffer
-	tw := tabwriter.NewWriter(&render, 8, 2, 4, ' ', 0)
-
-	for _, pb := range pbs {
-		fmt.Fprint(tw, pb.Render(isTTY, leftMax)+lineEnd)
+	pbsCount := len(pbs)
+	result := make([]string, pbsCount+2)
+	result[0] = lineEnd // start with an empty line
+	for i, pb := range pbs {
+		result[i+1] = pb.Render(isTTY, leftMax) + lineEnd
 	}
-
 	if isTTY && goBack {
 		// Go back to the beginning
 		//TODO: check for cross platform support
-		fmt.Fprint(tw, fmt.Sprintf("\r\x1b[%dA", len(pbs)))
+		result[pbsCount+1] = fmt.Sprintf("\r\x1b[%dA", pbsCount+1)
 	} else {
-		fmt.Fprint(tw, "\n")
+		result[pbsCount+1] = "\n"
 	}
-
-	tw.Flush()
-	return render.String()
+	return strings.Join(result, "")
 }
 
 //TODO: show other information here?
