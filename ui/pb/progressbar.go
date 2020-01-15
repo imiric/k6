@@ -42,6 +42,11 @@ const (
 	Done        Status = "✓"
 )
 
+var statusColors = map[Status]*color.Color{
+	Interrupted: color.New(color.FgRed),
+	Done:        color.New(color.FgGreen),
+}
+
 // ProgressBar is a simple thread-safe progressbar implementation with
 // callbacks.
 type ProgressBar struct {
@@ -200,7 +205,11 @@ func (pb *ProgressBar) Render(leftMax int) (out ProgressBarRender) {
 	}
 
 	out.Left = pb.renderLeft(leftMax)
-	out.Status = string(pb.status)
+	status := string(pb.status)
+	if c, ok := statusColors[pb.status]; ok {
+		status = c.Sprint(pb.status)
+	}
+	out.Status = fmt.Sprintf("%-1s", status)
 	out.Progress = fmt.Sprintf("[%s%s%s]", filling, caret, padding)
 
 	return
