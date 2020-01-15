@@ -156,6 +156,11 @@ type ProgressBarRender struct {
 	Right                  []string
 }
 
+func (pbr ProgressBarRender) String() string {
+	return fmt.Sprintf("%s %-1s %s %s",
+		pbr.Left, pbr.Status, pbr.Progress, strings.Join(pbr.Right, " "))
+}
+
 // Render locks the progressbar struct for reading and calls all of
 // its methods to returned the final output.
 // - leftMax defines the maximum character length of the left-side
