@@ -142,6 +142,11 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 	}
 }
 
+type ProgressBarRender struct {
+	Left, Status, Progress string
+	Right                  []string
+}
+
 // Render locks the progressbar struct for reading and calls all of
 // its methods to assemble the progress bar and return it as an array
 // of strings. Returning an array allows the output writer to properly
@@ -154,20 +159,18 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 // - [1] is the progress status symbol
 // - [2] is the progress bar itself
 // - [2:] are the *optional* right-side elements (columns)
-func (pb *ProgressBar) Render(leftMax int) []string {
+func (pb *ProgressBar) Render(leftMax int) (out ProgressBarRender) {
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
 	if pb.hijack != nil {
-		return []string{pb.hijack()}
+		out.Left = pb.hijack()
+		return
 	}
 
-	var (
-		progress   float64
-		out, right []string
-	)
+	var progress float64
 	if pb.progress != nil {
-		progress, right = pb.progress()
+		progress, out.Right = pb.progress()
 		progressClamped := Clampf(progress, 0, 1)
 		if progress != progressClamped {
 			progress = progressClamped
@@ -196,9 +199,9 @@ func (pb *ProgressBar) Render(leftMax int) []string {
 		padding = pb.color.Sprint(strings.Repeat("-", space-filled))
 	}
 
-	out = append(out, pb.renderLeft(leftMax), string(pb.status))
-	out = append(out, fmt.Sprintf("[%s%s%s]", filling, caret, padding))
-	out = append(out, right...)
+	out.Left = pb.renderLeft(leftMax)
+	out.Status = string(pb.status)
+	out.Progress = fmt.Sprintf("[%s%s%s]", filling, caret, padding)
 
-	return out
+	return
 }

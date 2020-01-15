@@ -79,8 +79,8 @@ func printBar(bar *pb.ProgressBar, rightText string) {
 		end = "\x1b[0K\r"
 	}
 	rendered := bar.Render(0)
-	// Only output the left and middle part of the progress
-	fprintf(stdout, "%s %s %s%s", rendered[0], rendered[2], rightText, end)
+	// Only output the left and middle part of the progress bar
+	fprintf(stdout, "%s %s %s%s", rendered.Left, rendered.Progress, rightText, end)
 }
 
 func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) string {
@@ -96,37 +96,31 @@ func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) 
 	// TODO: simplify this...
 	var (
 		maxRightFirstColLen int
-		rendered            [][]string
+		rendered            []pb.ProgressBarRender
 	)
 	// First pass to render all progressbars and get the maximum length of
 	// the first right-side column.
 	for _, pb := range pbs {
 		ren := pb.Render(leftMax)
-		rendered = append(rendered, ren)
-		if len(ren) > 3 && len(ren[3]) > maxRightFirstColLen {
-			maxRightFirstColLen = len(ren[3])
+		if len(ren.Right) > 0 && len(ren.Right[0]) > maxRightFirstColLen {
+			maxRightFirstColLen = len(ren.Right[0])
 		}
+		rendered = append(rendered, ren)
 	}
 
 	// Second pass to render final output, applying padding where needed
 	for i, ren := range rendered {
-		var leftText, middleText, rightText string
-		leftPadFmt := fmt.Sprintf("%%-%ds", leftMax)
-		leftText = fmt.Sprintf(leftPadFmt, ren[0])
-		if len(ren) > 1 {
-			leftText = leftText + fmt.Sprintf(" %s ", ren[1])
-		}
-		if len(ren) > 2 {
-			middleText = ren[2]
-			if len(ren) > 3 {
-				rightPadFmt := fmt.Sprintf(" %%-%ds", maxRightFirstColLen+2)
-				rightText = fmt.Sprintf(rightPadFmt, ren[3])
-				if len(ren) == 5 {
-					rightText = rightText + fmt.Sprintf("%s", ren[4])
-				}
+		var leftText, rightText string
+		leftPadFmt := fmt.Sprintf("%%-%ds %%s ", leftMax)
+		leftText = fmt.Sprintf(leftPadFmt, ren.Left, ren.Status)
+		if len(ren.Right) > 0 {
+			rightPadFmt := fmt.Sprintf(" %%-%ds", maxRightFirstColLen+2)
+			rightText = fmt.Sprintf(rightPadFmt, ren.Right[0])
+			if len(ren.Right) > 1 {
+				rightText = rightText + fmt.Sprintf("%s", ren.Right[1])
 			}
 		}
-		result[i+1] = leftText + middleText + rightText + lineEnd
+		result[i+1] = leftText + ren.Progress + rightText + lineEnd
 	}
 
 	if isTTY && goBack {
