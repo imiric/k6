@@ -147,23 +147,20 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 	}
 }
 
+// ProgressBarRender stores the different rendered parts of the
+// progress bar UI. This partitioning is done (vs Render() returning a
+// plain string) to allow dynamic padding and positioning of elements
+// depending on other elements on the screen.
 type ProgressBarRender struct {
 	Left, Status, Progress string
 	Right                  []string
 }
 
 // Render locks the progressbar struct for reading and calls all of
-// its methods to assemble the progress bar and return it as an array
-// of strings. Returning an array allows the output writer to properly
-// pad and align all elements across multiple progress bars.
+// its methods to returned the final output.
 // - leftMax defines the maximum character length of the left-side
 //   text. Characters exceeding this length will be replaced with a
 //   single ellipsis. Passing <=0 disables this.
-// The returned array consists of:
-// - [0] is the left side (progress bar title)
-// - [1] is the progress status symbol
-// - [2] is the progress bar itself
-// - [2:] are the *optional* right-side elements (columns)
 func (pb *ProgressBar) Render(leftMax int) (out ProgressBarRender) {
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
