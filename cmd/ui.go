@@ -78,7 +78,8 @@ func printBar(bar *pb.ProgressBar, rightText string) {
 		// TODO: check for cross platform support
 		end = "\x1b[0K\r"
 	}
-	fprintf(stdout, "%s %s%s", bar.Render(stdout.IsTTY, 0), rightText, end)
+	leftText, _ := bar.Render(0)
+	fprintf(stdout, "%s %s%s", leftText, rightText, end)
 }
 
 func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) string {
@@ -91,9 +92,33 @@ func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) 
 	pbsCount := len(pbs)
 	result := make([]string, pbsCount+2)
 	result[0] = lineEnd // start with an empty line
+	// TODO: simplify this...
+	var (
+		maxRightFirstColLen int
+		rightCols           [][]string
+	)
 	for i, pb := range pbs {
-		result[i+1] = pb.Render(isTTY, leftMax) + lineEnd
+		leftRen, rightRen := pb.Render(leftMax)
+		if len(rightRen) > 0 && len(rightRen[0]) > maxRightFirstColLen {
+			maxRightFirstColLen = len(rightRen[0])
+		}
+		rightCols = append(rightCols, rightRen)
+		result[i+1] = leftRen
 	}
+
+	// Render right side columns with appropriate padding
+	for i, rc := range rightCols {
+		var rightText string
+		if len(rc) > 0 {
+			padFmt := fmt.Sprintf(" %%-%ds", maxRightFirstColLen+2)
+			rightText = fmt.Sprintf(padFmt, rc[0])
+			if len(rc) == 2 {
+				rightText = rightText + fmt.Sprintf("%s", rc[1])
+			}
+		}
+		result[i+1] = result[i+1] + rightText + lineEnd
+	}
+
 	if isTTY && goBack {
 		// Go back to the beginning
 		//TODO: check for cross platform support

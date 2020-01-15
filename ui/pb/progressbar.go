@@ -42,7 +42,7 @@ const (
 	Done        Status = "✓"
 )
 
-// ProgressBar is just a simple thread-safe progressbar implementation with
+// ProgressBar is a simple thread-safe progressbar implementation with
 // callbacks.
 type ProgressBar struct {
 	mutex  sync.RWMutex
@@ -52,7 +52,7 @@ type ProgressBar struct {
 	status Status
 
 	left     func() string
-	progress func() (progress float64, right string)
+	progress func() (progress float64, right []string)
 	hijack   func() string
 }
 
@@ -78,7 +78,7 @@ func WithLogger(logger *logrus.Entry) ProgressBarOption {
 }
 
 // WithProgress modifies the progress calculation function.
-func WithProgress(progress func() (float64, string)) ProgressBarOption {
+func WithProgress(progress func() (float64, []string)) ProgressBarOption {
 	return func(pb *ProgressBar) { pb.progress = progress }
 }
 
@@ -88,9 +88,9 @@ func WithStatus(status Status) ProgressBarOption {
 }
 
 // WithConstProgress sets the progress and right padding to the supplied consts.
-func WithConstProgress(progress float64, right string) ProgressBarOption {
+func WithConstProgress(progress float64, right ...string) ProgressBarOption {
 	return func(pb *ProgressBar) {
-		pb.progress = func() (float64, string) { return progress, right }
+		pb.progress = func() (float64, []string) { return progress, right }
 	}
 }
 
@@ -148,24 +148,22 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 // to assemble the progress bar and return it as a string.
 // - isTTY writes ANSI escape sequences to clean up the terminal output if true.
 // - leftMax defines the maximum character length of the left-side
-//   text, as well as the padding between the text and the opening
-//   square bracket. Characters exceeding this length will be replaced
-//   with a single ellipsis. Passing <=0 disables this.
-func (pb *ProgressBar) Render(isTTY bool, leftMax int) string {
+//   text. Characters exceeding this length will be replaced with a
+//   single ellipsis. Passing <=0 disables this.
+func (pb *ProgressBar) Render(leftMax int) (string, []string) {
 	pb.mutex.RLock()
 	defer pb.mutex.RUnlock()
 
 	if pb.hijack != nil {
-		return pb.hijack()
+		return pb.hijack(), []string{}
 	}
 
 	var (
 		progress float64
-		right    string
+		right    []string
 	)
 	if pb.progress != nil {
 		progress, right = pb.progress()
-		right = " " + right
 		progressClamped := Clampf(progress, 0, 1)
 		if progress != progressClamped {
 			progress = progressClamped
@@ -194,13 +192,6 @@ func (pb *ProgressBar) Render(isTTY bool, leftMax int) string {
 		padding = pb.color.Sprint(strings.Repeat("-", space-filled))
 	}
 
-	if isTTY {
-		// Ensure right side is clear of garbage text that might be introduced
-		// by errors or logging messages. This is needed in addition to the
-		// optional clear after the right text because of the use of tabs.
-		right = "\x1b[K" + right
-	}
-
-	return fmt.Sprintf("%s%2s [%s%s%s]%s\t",
-		pb.renderLeft(leftMax), pb.status, filling, caret, padding, right)
+	return fmt.Sprintf("%s%2s [%s%s%s]",
+		pb.renderLeft(leftMax), pb.status, filling, caret, padding), right
 }
