@@ -90,37 +90,53 @@ func renderMultipleBars(isTTY, goBack bool, leftMax int, pbs []*pb.ProgressBar) 
 		lineEnd = "\x1b[K\n" // erase till end of line
 	}
 
-	pbsCount := len(pbs)
-	result := make([]string, pbsCount+2)
-	result[0] = lineEnd // start with an empty line
-	// TODO: simplify this...
 	var (
-		maxRightFirstColLen int
-		rendered            []pb.ProgressBarRender
+		// Maximum length of each right side column except last,
+		// used to calculate the padding between columns.
+		maxRColumnLen = [...]int{0}
+		pbsCount      = len(pbs)
+		rendered      = make([]pb.ProgressBarRender, pbsCount)
+		result        = make([]string, pbsCount+2)
 	)
-	// First pass to render all progressbars and get the maximum length of
-	// the first right-side column.
-	for _, pb := range pbs {
-		ren := pb.Render(leftMax)
-		if len(ren.Right) > 0 && len(ren.Right[0]) > maxRightFirstColLen {
-			maxRightFirstColLen = len(ren.Right[0])
+
+	result[0] = lineEnd // start with an empty line
+
+	// First pass to render all progressbars and get the maximum
+	// lengths of right-side columns.
+	for i, pb := range pbs {
+		rend := pb.Render(leftMax)
+		for i := range rend.Right {
+			// Don't calculate for last column, since there's nothing to align
+			// after it.
+			if i == len(rend.Right)-1 {
+				break
+			}
+			if len(rend.Right[i]) > maxRColumnLen[i] {
+				maxRColumnLen[i] = len(rend.Right[i])
+			}
 		}
-		rendered = append(rendered, ren)
+		rendered[i] = rend
 	}
 
 	// Second pass to render final output, applying padding where needed
-	for i, ren := range rendered {
+	for i := range rendered {
+		rend := rendered[i]
+		if rend.Hijack != "" {
+			result[i+1] = rend.Hijack + lineEnd
+			continue
+		}
 		var leftText, rightText string
 		leftPadFmt := fmt.Sprintf("%%-%ds %%s ", leftMax)
-		leftText = fmt.Sprintf(leftPadFmt, ren.Left, ren.Status)
-		if len(ren.Right) > 0 {
-			rightPadFmt := fmt.Sprintf(" %%-%ds", maxRightFirstColLen+2)
-			rightText = fmt.Sprintf(rightPadFmt, ren.Right[0])
-			if len(ren.Right) > 1 {
-				rightText = rightText + fmt.Sprintf("%s", ren.Right[1])
+		leftText = fmt.Sprintf(leftPadFmt, rend.Left, rend.Status)
+		for i := range rend.Right {
+			rpad := 0
+			if len(maxRColumnLen) > i {
+				rpad = maxRColumnLen[i]
 			}
+			rightPadFmt := fmt.Sprintf(" %%-%ds", rpad+1)
+			rightText = rightText + fmt.Sprintf(rightPadFmt, rend.Right[i])
 		}
-		result[i+1] = leftText + ren.Progress + rightText + lineEnd
+		result[i+1] = leftText + rend.Progress + rightText + lineEnd
 	}
 
 	if isTTY && goBack {

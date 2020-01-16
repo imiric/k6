@@ -150,13 +150,20 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 // ProgressBarRender stores the different rendered parts of the
 // progress bar UI.
 type ProgressBarRender struct {
-	Left, Status, Progress string
-	Right                  []string
+	Left, Status, Progress, Hijack string
+	Right                          []string
 }
 
 func (pbr ProgressBarRender) String() string {
-	return fmt.Sprintf("%s %-1s %s %s",
-		pbr.Left, pbr.Status, pbr.Progress, strings.Join(pbr.Right, " "))
+	if pbr.Hijack != "" {
+		return pbr.Hijack
+	}
+	var right string
+	if len(pbr.Right) > 0 {
+		right = " " + strings.Join(pbr.Right, "  ")
+	}
+	return fmt.Sprintf("%s %-1s %s%s",
+		pbr.Left, pbr.Status, pbr.Progress, right)
 }
 
 // Render locks the progressbar struct for reading and calls all of
@@ -171,7 +178,7 @@ func (pb *ProgressBar) Render(leftMax int) (out ProgressBarRender) {
 	defer pb.mutex.RUnlock()
 
 	if pb.hijack != nil {
-		out.Left = pb.hijack()
+		out.Hijack = pb.hijack()
 		return
 	}
 
