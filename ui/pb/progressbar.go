@@ -32,8 +32,10 @@ import (
 const defaultWidth = 40
 const defaultBarColor = color.Faint
 
+// Status of the progress bar
 type Status string
 
+// Progress bar status symbols
 const (
 	Running     Status = " "
 	Waiting     Status = "•"
@@ -65,12 +67,12 @@ type ProgressBar struct {
 // parameters, either in the constructor or via the Modify() method.
 type ProgressBarOption func(*ProgressBar)
 
-// WithLeft modifies the function that returns the left progressbar padding.
+// WithLeft modifies the function that returns the left progressbar value.
 func WithLeft(left func() string) ProgressBarOption {
 	return func(pb *ProgressBar) { pb.left = left }
 }
 
-// WithConstLeft sets the left progressbar padding to the supplied const.
+// WithConstLeft sets the left progressbar value to the supplied const.
 func WithConstLeft(left string) ProgressBarOption {
 	return func(pb *ProgressBar) {
 		pb.left = func() string { return left }
@@ -92,14 +94,14 @@ func WithStatus(status Status) ProgressBarOption {
 	return func(pb *ProgressBar) { pb.status = status }
 }
 
-// WithConstProgress sets the progress and right padding to the supplied consts.
+// WithConstProgress sets the progress and right values to the supplied consts.
 func WithConstProgress(progress float64, right ...string) ProgressBarOption {
 	return func(pb *ProgressBar) {
 		pb.progress = func() (float64, []string) { return progress, right }
 	}
 }
 
-// WithHijack replaces the progressbar String function with the argument.
+// WithHijack replaces the progressbar Render function with the argument.
 func WithHijack(hijack func() string) ProgressBarOption {
 	return func(pb *ProgressBar) { pb.hijack = hijack }
 }
