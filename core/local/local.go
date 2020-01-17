@@ -180,6 +180,7 @@ func (e *ExecutionScheduler) getRunStats() string {
 	}
 
 	vusFmt := pb.GetFixedLengthIntFormat(int64(e.maxPossibleVUs))
+	return ""
 	return fmt.Sprintf(
 		"%s, "+vusFmt+"/"+vusFmt+" VUs, %d complete and %d interrupted iterations",
 		status, e.state.GetCurrentlyActiveVUsCount(), e.state.GetInitializedVUsCount(),

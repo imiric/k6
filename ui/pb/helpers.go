@@ -142,3 +142,12 @@ func Clampf(val, min, max float64) float64 {
 		return val
 	}
 }
+
+// Min returns the minimum value of a and b.
+// This is copied from lib/util.go to avoid circular imports.
+func Min(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
+}

@@ -158,7 +158,7 @@ a commandline interface for interacting with it.`,
 		progressBarWG := &sync.WaitGroup{}
 		progressBarWG.Add(1)
 		go func() {
-			showProgress(ctx, conf, execScheduler)
+			showProgress(ctx, conf, execScheduler, logger)
 			progressBarWG.Done()
 		}()
 
