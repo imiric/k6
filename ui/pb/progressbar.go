@@ -35,14 +35,14 @@ var (
 		Interrupted: color.New(color.FgRed),
 		Done:        color.New(color.FgGreen),
 	}
-	AnsiLen = len(colorFaint.Sprint("")) + len(statusColors[Done].Sprint(""))
+	// AnsiLen = len(colorFaint.Sprint("")) + len(statusColors[Done].Sprint(""))
 )
 
 const (
 	defaultWidth = 40
 	// threshold below which progress should be rendered as
 	// percentages instead of filling bars
-	minWidth = 6
+	minWidth = 8
 )
 
 // Status of the progress bar
@@ -158,8 +158,28 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 // ProgressBarRender stores the different rendered parts of the
 // progress bar UI.
 type ProgressBarRender struct {
-	Left, Status, Progress, Hijack string
-	Right                          []string
+	progress, progressFill, progressPadding string
+	Left, Status, Hijack                    string
+	Right                                   []string
+}
+
+func (pbr *ProgressBarRender) Colorize() {
+	pbr.progressPadding = colorFaint.Sprint(pbr.progressPadding)
+	status := pbr.Status
+	if c, ok := statusColors[Status(status)]; ok {
+		status = c.Sprint(status)
+	}
+	pbr.Status = status
+}
+
+func (pbr *ProgressBarRender) Progress() string {
+	var body string
+	if pbr.progress != "" {
+		body = fmt.Sprintf(" %s ", pbr.progress)
+	} else {
+		body = pbr.progressFill + pbr.progressPadding
+	}
+	return fmt.Sprintf("[%s]", body)
 }
 
 func (pbr ProgressBarRender) String() string {
@@ -171,7 +191,7 @@ func (pbr ProgressBarRender) String() string {
 		right = " " + strings.Join(pbr.Right, "  ")
 	}
 	return fmt.Sprintf("%s %-1s %s%s",
-		pbr.Left, pbr.Status, pbr.Progress, right)
+		pbr.Left, pbr.Status, pbr.Progress(), right)
 }
 
 // Render locks the progressbar struct for reading and calls all of
@@ -207,11 +227,17 @@ func (pb *ProgressBar) Render(maxLeft, widthDelta int) ProgressBarRender {
 		}
 	}
 
-	width := Min(int64(pb.width+widthDelta), defaultWidth)
+	// if atomic.LoadUint64(&renderCount) > 500 {
+	// widthDelta = int(math.Abs(float64(widthDelta)))
+	// }
+	// fmt.Printf("raw delta: %d\n", pb.width+widthDelta)
 
-	var body string
-	if width > minWidth {
-		pb.width = int(width)
+	// width := Min(int64(pb.width+widthDelta), defaultWidth)
+	width := Clampf(float64(pb.width+widthDelta), minWidth, defaultWidth)
+	// width := pb.width + widthDelta
+	pb.width = int(width)
+
+	if pb.width > minWidth {
 		space := pb.width - 2
 		filled := int(float64(space) * progress)
 
@@ -226,23 +252,18 @@ func (pb *ProgressBar) Render(maxLeft, widthDelta int) ProgressBarRender {
 			}
 		}
 
-		padding := ""
+		out.progressPadding = ""
 		if space > filled {
-			padding = colorFaint.Sprint(strings.Repeat("-", space-filled))
+			out.progressPadding = strings.Repeat("-", space-filled)
 		}
 
-		body = filling + caret + padding
+		out.progressFill = filling + caret
 	} else {
-		body = fmt.Sprintf(" %3.f%% ", progress*100)
+		out.progress = fmt.Sprintf("%3.f%%", progress*100)
 	}
 
 	out.Left = pb.renderLeft(maxLeft)
-	status := colorFaint.Sprint(pb.status)
-	if c, ok := statusColors[pb.status]; ok {
-		status = c.Sprint(pb.status)
-	}
-	out.Status = fmt.Sprintf("%-1s", status)
-	out.Progress = fmt.Sprintf("[%s]", body)
+	out.Status = string(pb.status)
 
 	return out
 }

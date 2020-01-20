@@ -89,7 +89,7 @@ func printBar(bar *pb.ProgressBar, rightText string) {
 	}
 	rendered := bar.Render(0, 0)
 	// Only output the left and middle part of the progress bar
-	fprintf(stdout, "%s %s %s%s", rendered.Left, rendered.Progress, rightText, end)
+	fprintf(stdout, "%s %s %s%s", rendered.Left, rendered.Progress(), rightText, end)
 }
 
 func renderMultipleBars(
@@ -147,12 +147,14 @@ func renderMultipleBars(
 			rightPadFmt := fmt.Sprintf(" %%-%ds", rpad+1)
 			rightText += fmt.Sprintf(rightPadFmt, rend.Right[i])
 		}
-		line := leftText + rend.Progress + rightText
-		lineLenNoAnsi := len(line) - pb.AnsiLen
-		if lineLenNoAnsi > longestLine {
-			longestLine = lineLenNoAnsi
+		// Get "visible" line length, without ANSI escape sequences (color)
+		lineNoAnsi := leftText + rend.Progress() + rightText
+		if len(lineNoAnsi) > longestLine {
+			longestLine = len(lineNoAnsi)
 		}
-		result[i+1] = line + lineEnd
+		rend.Colorize()
+		result[i+1] = fmt.Sprintf(leftPadFmt+"%s%s%s", rend.Left, rend.Status,
+			rend.Progress(), rightText, lineEnd)
 	}
 
 	if isTTY && goBack {
@@ -202,18 +204,20 @@ func showProgress(
 	// Limit to maximum left text length
 	maxLeft := int(lib.Min(leftLen, maxLeftLength))
 
+	var longestLine int
+
 	var progressBarsLastRender []byte
-	renderProgressBars := func(widthDelta int) {
-		barText, longestLine := renderMultipleBars(stdoutTTY, true, maxLeft, widthDelta, pbs)
-		wd := (termWidth - longestLine) - 2
+	renderProgressBars := func(goBack bool, widthDelta int) {
+		var barText string
+		barText, longestLine = renderMultipleBars(stdoutTTY, goBack, maxLeft, widthDelta, pbs)
 		if longestLine > termWidth {
-			fmt.Printf("longestLine %d > termWidth %d, delta: %d\n", longestLine, termWidth, wd)
+			// fmt.Printf("longestLine %d > termWidth %d, delta: %d\n", longestLine, termWidth, wd)
 			// The UI would be clipped or split into several lines, so
 			// re-render to fit the available space.
 			barText, _ = renderMultipleBars(
-				stdoutTTY, true, maxLeft, wd, pbs)
+				stdoutTTY, true, maxLeft, termWidth-longestLine, pbs)
 		} else {
-			fmt.Printf("longestLine %d < termWidth %d, delta: %d\n", longestLine, termWidth, wd)
+			// fmt.Printf("longestLine %d < termWidth %d, delta: %d\n", longestLine, termWidth, wd)
 		}
 
 		progressBarsLastRender = []byte(barText)
@@ -225,25 +229,8 @@ func showProgress(
 
 	//TODO: make configurable?
 	updateFreq := 1 * time.Second
-	//TODO: remove !noColor after we fix how we handle colors (see the related
-	//description in the TODO message in cmd/root.go)
-	if stdoutTTY && !noColor {
+	if stdoutTTY {
 		updateFreq = 100 * time.Millisecond
-		outMutex.Lock()
-		stdout.PersistentText = printProgressBars
-		stderr.PersistentText = printProgressBars
-		outMutex.Unlock()
-		defer func() {
-			outMutex.Lock()
-			stdout.PersistentText = nil
-			stderr.PersistentText = nil
-			if ctx.Err() != nil {
-				// Render a last plain-text progressbar in an error
-				renderProgressBars(0)
-				printProgressBars()
-			}
-			outMutex.Unlock()
-		}()
 	}
 
 	ctxDone := ctx.Done()
@@ -252,15 +239,27 @@ func showProgress(
 	for {
 		select {
 		case <-ctxDone:
+			// FIXME: Remove this...
+			// Add a small delay to allow executors time to process
+			// the done context, so that the correct status symbol is
+			// outputted for each progress bar.
+			time.Sleep(50 * time.Millisecond)
+			renderProgressBars(false, 0)
+			printProgressBars()
 			return
 		case <-ticker.C:
 		case <-sigwinch:
-			fmt.Printf("received SIGWINCH\n")
+			// fmt.Printf("received SIGWINCH\n")
 			newTermWidth, _, _ := terminal.GetSize(int(os.Stdout.Fd()))
-			widthDelta = newTermWidth - termWidth
+			widthDelta = termWidth - longestLine
 			termWidth = newTermWidth
+			// wd := newTermWidth - termWidth
+			// if math.Abs(float64(wd)) >= 5 {
+			// 	widthDelta = wd
+			// }
+			// termWidth = newTermWidth
 		}
-		renderProgressBars(widthDelta)
+		renderProgressBars(true, widthDelta)
 		outMutex.Lock()
 		printProgressBars()
 		outMutex.Unlock()
