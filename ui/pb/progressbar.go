@@ -232,14 +232,7 @@ func (pb *ProgressBar) Render(maxLeft, widthDelta int) ProgressBarRender {
 		}
 	}
 
-	// if atomic.LoadUint64(&renderCount) > 500 {
-	// widthDelta = int(math.Abs(float64(widthDelta)))
-	// }
-	// fmt.Printf("raw delta: %d\n", pb.width+widthDelta)
-
-	// width := Min(int64(pb.width+widthDelta), defaultWidth)
 	width := Clampf(float64(pb.width+widthDelta), minWidth, defaultWidth)
-	// width := pb.width + widthDelta
 	pb.width = int(width)
 
 	if pb.width > minWidth {

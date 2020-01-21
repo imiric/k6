@@ -206,23 +206,12 @@ func showProgress(
 	// Limit to maximum left text length
 	maxLeft := int(lib.Min(leftLen, maxLeftLength))
 
-	var longestLine int
-
+	var widthDelta int
 	var progressBarsLastRender []byte
-	renderProgressBars := func(goBack bool, widthDelta int) {
-		var barText string
-		barText, longestLine = renderMultipleBars(stdoutTTY, goBack, maxLeft, widthDelta, pbs)
-		wd := termWidth - longestLine
-		if longestLine > termWidth {
-			fmt.Printf("longestLine %d > termWidth %d, delta: %d\n", longestLine, termWidth, wd)
-			// The UI would be clipped or split into several lines, so
-			// re-render to fit the available space.
-			barText, _ = renderMultipleBars(
-				stdoutTTY, true, maxLeft, wd, pbs)
-		} else {
-			fmt.Printf("longestLine %d < termWidth %d, delta: %d\n", longestLine, termWidth, wd)
-		}
-
+	renderProgressBars := func(goBack bool) {
+		barText, longestLine := renderMultipleBars(stdoutTTY, goBack, maxLeft, widthDelta, pbs)
+		// -1 to allow some "breathing room" near the edge
+		widthDelta = termWidth - longestLine - 1
 		progressBarsLastRender = []byte(barText)
 	}
 
@@ -238,7 +227,6 @@ func showProgress(
 
 	ctxDone := ctx.Done()
 	ticker := time.NewTicker(updateFreq)
-	var widthDelta int
 	for {
 		select {
 		case <-ctxDone:
@@ -247,22 +235,14 @@ func showProgress(
 			// the done context, so that the correct status symbol is
 			// outputted for each progress bar.
 			time.Sleep(50 * time.Millisecond)
-			renderProgressBars(false, 0)
+			renderProgressBars(false)
 			printProgressBars()
 			return
 		case <-ticker.C:
 		case <-sigwinch:
-			fmt.Printf("received SIGWINCH\n")
-			newTermWidth, _, _ := terminal.GetSize(int(os.Stdout.Fd()))
-			widthDelta = termWidth - longestLine
-			termWidth = newTermWidth
-			// wd := newTermWidth - termWidth
-			// if math.Abs(float64(wd)) >= 5 {
-			// 	widthDelta = wd
-			// }
-			// termWidth = newTermWidth
+			termWidth, _, _ = terminal.GetSize(int(os.Stdout.Fd()))
 		}
-		renderProgressBars(true, widthDelta)
+		renderProgressBars(true)
 		outMutex.Lock()
 		printProgressBars()
 		outMutex.Unlock()
