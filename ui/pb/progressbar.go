@@ -35,7 +35,6 @@ var (
 		Interrupted: color.New(color.FgRed),
 		Done:        color.New(color.FgGreen),
 	}
-	// AnsiLen = len(colorFaint.Sprint("")) + len(statusColors[Done].Sprint(""))
 )
 
 const (
@@ -156,20 +155,22 @@ func (pb *ProgressBar) Modify(options ...ProgressBarOption) {
 }
 
 // ProgressBarRender stores the different rendered parts of the
-// progress bar UI.
+// progress bar UI to allow dynamic positioning and padding of
+// elements in the terminal output (e.g. for responsive progress
+// bars).
 type ProgressBarRender struct {
+	Color                                   bool
 	progress, progressFill, progressPadding string
-	Left, Status, Hijack                    string
+	Left, status, Hijack                    string
 	Right                                   []string
 }
 
-func (pbr *ProgressBarRender) Colorize() {
-	pbr.progressPadding = colorFaint.Sprint(pbr.progressPadding)
-	status := pbr.Status
-	if c, ok := statusColors[Status(status)]; ok {
+func (pbr *ProgressBarRender) Status() string {
+	status := pbr.status
+	if c, ok := statusColors[Status(status)]; ok && pbr.Color {
 		status = c.Sprint(status)
 	}
-	pbr.Status = status
+	return status
 }
 
 func (pbr *ProgressBarRender) Progress() string {
@@ -177,7 +178,11 @@ func (pbr *ProgressBarRender) Progress() string {
 	if pbr.progress != "" {
 		body = fmt.Sprintf(" %s ", pbr.progress)
 	} else {
-		body = pbr.progressFill + pbr.progressPadding
+		padding := pbr.progressPadding
+		if pbr.Color {
+			padding = colorFaint.Sprint(pbr.progressPadding)
+		}
+		body = pbr.progressFill + padding
 	}
 	return fmt.Sprintf("[%s]", body)
 }
@@ -191,7 +196,7 @@ func (pbr ProgressBarRender) String() string {
 		right = " " + strings.Join(pbr.Right, "  ")
 	}
 	return fmt.Sprintf("%s %-1s %s%s",
-		pbr.Left, pbr.Status, pbr.Progress(), right)
+		pbr.Left, pbr.Status(), pbr.Progress(), right)
 }
 
 // Render locks the progressbar struct for reading and calls all of
@@ -263,7 +268,7 @@ func (pb *ProgressBar) Render(maxLeft, widthDelta int) ProgressBarRender {
 	}
 
 	out.Left = pb.renderLeft(maxLeft)
-	out.Status = string(pb.status)
+	out.status = string(pb.status)
 
 	return out
 }

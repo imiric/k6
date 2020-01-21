@@ -137,8 +137,8 @@ func renderMultipleBars(
 			continue
 		}
 		var leftText, rightText string
-		leftPadFmt := fmt.Sprintf("%%-%ds %%s ", maxLeft)
-		leftText = fmt.Sprintf(leftPadFmt, rend.Left, rend.Status)
+		leftPadFmt := fmt.Sprintf("%%-%ds", maxLeft)
+		leftText = fmt.Sprintf(leftPadFmt, rend.Left)
 		for i := range rend.Right {
 			rpad := 0
 			if len(maxRColumnLen) > i {
@@ -148,12 +148,14 @@ func renderMultipleBars(
 			rightText += fmt.Sprintf(rightPadFmt, rend.Right[i])
 		}
 		// Get "visible" line length, without ANSI escape sequences (color)
-		lineNoAnsi := leftText + rend.Progress() + rightText
+		status := fmt.Sprintf(" %s ", rend.Status())
+		lineNoAnsi := leftText + status + rend.Progress() + rightText
 		if len(lineNoAnsi) > longestLine {
 			longestLine = len(lineNoAnsi)
 		}
-		rend.Colorize()
-		result[i+1] = fmt.Sprintf(leftPadFmt+"%s%s%s", rend.Left, rend.Status,
+		rend.Color = true
+		status = fmt.Sprintf(" %s ", rend.Status())
+		result[i+1] = fmt.Sprintf(leftPadFmt+"%s%s%s%s", rend.Left, status,
 			rend.Progress(), rightText, lineEnd)
 	}
 
@@ -210,14 +212,15 @@ func showProgress(
 	renderProgressBars := func(goBack bool, widthDelta int) {
 		var barText string
 		barText, longestLine = renderMultipleBars(stdoutTTY, goBack, maxLeft, widthDelta, pbs)
+		wd := termWidth - longestLine
 		if longestLine > termWidth {
-			// fmt.Printf("longestLine %d > termWidth %d, delta: %d\n", longestLine, termWidth, wd)
+			fmt.Printf("longestLine %d > termWidth %d, delta: %d\n", longestLine, termWidth, wd)
 			// The UI would be clipped or split into several lines, so
 			// re-render to fit the available space.
 			barText, _ = renderMultipleBars(
-				stdoutTTY, true, maxLeft, termWidth-longestLine, pbs)
+				stdoutTTY, true, maxLeft, wd, pbs)
 		} else {
-			// fmt.Printf("longestLine %d < termWidth %d, delta: %d\n", longestLine, termWidth, wd)
+			fmt.Printf("longestLine %d < termWidth %d, delta: %d\n", longestLine, termWidth, wd)
 		}
 
 		progressBarsLastRender = []byte(barText)
@@ -249,7 +252,7 @@ func showProgress(
 			return
 		case <-ticker.C:
 		case <-sigwinch:
-			// fmt.Printf("received SIGWINCH\n")
+			fmt.Printf("received SIGWINCH\n")
 			newTermWidth, _, _ := terminal.GetSize(int(os.Stdout.Fd()))
 			widthDelta = termWidth - longestLine
 			termWidth = newTermWidth
