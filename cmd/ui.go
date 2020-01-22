@@ -26,10 +26,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"golang.org/x/crypto/ssh/terminal"
@@ -181,10 +179,6 @@ func showProgress(
 		return
 	}
 
-	// Listen for terminal window size changes, *nix only
-	sigwinch := make(chan os.Signal, 1)
-	signal.Notify(sigwinch, os.Signal(syscall.SIGWINCH))
-
 	pbs := []*pb.ProgressBar{execScheduler.GetInitProgressBar()}
 	for _, s := range execScheduler.GetExecutors() {
 		pbs = append(pbs, s.GetProgress())
@@ -210,8 +204,10 @@ func showProgress(
 	var progressBarsLastRender []byte
 	renderProgressBars := func(goBack bool) {
 		barText, longestLine := renderMultipleBars(stdoutTTY, goBack, maxLeft, widthDelta, pbs)
+		// if termWidth > 0 {
 		// -1 to allow some "breathing room" near the edge
 		widthDelta = termWidth - longestLine - 1
+		// }
 		progressBarsLastRender = []byte(barText)
 	}
 
@@ -227,6 +223,8 @@ func showProgress(
 
 	ctxDone := ctx.Done()
 	ticker := time.NewTicker(updateFreq)
+	sigwinch := NotifyWindowResize()
+	fd := int(os.Stdout.Fd())
 	for {
 		select {
 		case <-ctxDone:
@@ -239,8 +237,9 @@ func showProgress(
 			printProgressBars()
 			return
 		case <-ticker.C:
+			termWidth, _, _ = GetTermSize(fd, termWidth)
 		case <-sigwinch:
-			termWidth, _, _ = terminal.GetSize(int(os.Stdout.Fd()))
+			termWidth, _, _ = terminal.GetSize(fd)
 		}
 		renderProgressBars(true)
 		outMutex.Lock()
