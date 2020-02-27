@@ -21,8 +21,12 @@
 package lib
 
 import (
+	"fmt"
 	"math/big"
+	"math/rand"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -382,3 +386,102 @@ func TestExecutionSegmentStringSequences(t *testing.T) {
 }
 
 // TODO: test with randomized things
+
+// Return a randomly distributed sequence of execution segments whose
+// length totals 1.
+func genRandomExecutionSegmentSequence(maxSegments int) (ExecutionSegmentSequence, error) {
+	const denom int64 = 1000
+	randRat := func(numDelta int64) *big.Rat {
+		// The -100/+10 dance is to ensure we don't get too small
+		// (e.g. 0/denom) or too large (e.g. 999/1000) segments.
+		randCap := Max(1, denom-numDelta-300)
+		return big.NewRat(int64(rand.Int63n(randCap)+rand.Int63n(100)+1), denom)
+	}
+	var from, to *big.Rat = zeroRat, randRat(int64(0))
+
+	var numSum int64
+	segments := []*ExecutionSegment{}
+	for i := 0; i < maxSegments; i++ {
+		segment, err := NewExecutionSegment(from, to)
+		if err != nil {
+			return nil, err
+		}
+		segments = append(segments, segment)
+		from = to
+		numSum += to.Num().Int64()
+		to = new(big.Rat).Add(to, randRat(numSum))
+		// Stop if to > 1
+		if to.Cmp(oneRat) == 1 {
+			break
+		}
+	}
+
+	last, _ := NewExecutionSegment(from, oneRat)
+	segments = append(segments, last)
+	fmt.Printf("len(segments): %d\n", len(segments))
+
+	return NewExecutionSegmentSequence(segments...)
+}
+
+func TestScaleConsistency(t *testing.T) {
+	t.Parallel()
+
+	seq, err := genRandomExecutionSegmentSequence(50)
+	require.NoError(t, err)
+	fmt.Printf("%v\n", seq)
+	os.Exit(1)
+	// newExecutionSegmentFromString := func(str string) *ExecutionSegment {
+	// 	r, err := NewExecutionSegmentFromString(str)
+	// 	require.NoError(t, err)
+	// 	return r
+	// }
+
+	newExecutionSegmentSequenceFromString := func(str string) *ExecutionSegmentSequence {
+		r, err := NewExecutionSegmentSequenceFromString(str)
+		require.NoError(t, err)
+		return &r
+	}
+
+	testCases := []struct {
+		sequence *ExecutionSegmentSequence
+	}{
+		{
+			sequence: newExecutionSegmentSequenceFromString("0,1/3,2/3,1"),
+		},
+		// {
+		// 	sequence: newExecutionSegmentSequenceFromString("0,2/5,3/5,4/5,1"),
+		// },
+		// {
+		// 	sequence: newExecutionSegmentSequenceFromString("0,1/2,3/4,1"),
+		// },
+	}
+
+	numTests := 10
+	for _, tc := range testCases {
+		tc := tc
+		chosenFactors := make(map[int32]struct{})
+		for i := 0; i < numTests; i++ {
+			m := rand.Int31n(1000) + 2
+			if _, ok := chosenFactors[m]; ok {
+				fmt.Printf("skipping test for factor %d\n", m)
+				// Already ran test with this factor, so skip and try again.
+				numTests++
+				continue
+			}
+			chosenFactors[m] = struct{}{}
+			t.Run(fmt.Sprintf("%d_%s", m, tc.sequence), func(t *testing.T) {
+				var total int64
+				for _, segment := range *tc.sequence {
+					total += segment.Scale(int64(m))
+				}
+				// *Sometimes* m > total by 1 :-/
+				assert.InDelta(t, int64(m), total, 1)
+			})
+		}
+	}
+}
+
+func TestMain(m *testing.M) {
+	rand.Seed(time.Now().UnixNano())
+	os.Exit(m.Run())
+}
