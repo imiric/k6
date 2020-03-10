@@ -21,10 +21,9 @@
 package executor
 
 import (
-	"github.com/loadimpact/k6/lib"
-	"github.com/loadimpact/k6/lib/types"
 	"github.com/sirupsen/logrus"
-	null "gopkg.in/guregu/null.v3"
+
+	"github.com/loadimpact/k6/lib"
 )
 
 // ExecutionConflictError is a custom error type used for all of the errors in
@@ -37,33 +36,33 @@ func (e ExecutionConflictError) Error() string {
 
 var _ error = ExecutionConflictError("")
 
-func getConstantLoopingVUsExecution(duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap {
-	ds := NewConstantLoopingVUsConfig(lib.DefaultExecutorName)
-	ds.VUs = vus
-	ds.Duration = duration
-	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
-}
+// func getConstantLoopingVUsExecution(duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap {
+// 	ds := NewConstantLoopingVUsConfig(lib.DefaultExecutorName)
+// 	ds.VUs = vus
+// 	ds.Duration = duration
+// 	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
+// }
 
-func getVariableLoopingVUsExecution(stages []lib.Stage, startVUs null.Int) lib.ExecutorConfigMap {
-	ds := NewVariableLoopingVUsConfig(lib.DefaultExecutorName)
-	ds.StartVUs = startVUs
-	for _, s := range stages {
-		if s.Duration.Valid {
-			ds.Stages = append(ds.Stages, Stage{Duration: s.Duration, Target: s.Target})
-		}
-	}
-	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
-}
+// func getVariableLoopingVUsExecution(stages []lib.Stage, startVUs null.Int) lib.ExecutorConfigMap {
+// 	ds := NewVariableLoopingVUsConfig(lib.DefaultExecutorName)
+// 	ds.StartVUs = startVUs
+// 	for _, s := range stages {
+// 		if s.Duration.Valid {
+// 			ds.Stages = append(ds.Stages, Stage{Duration: s.Duration, Target: s.Target})
+// 		}
+// 	}
+// 	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
+// }
 
-func getSharedIterationsExecution(iters null.Int, duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap {
-	ds := NewSharedIterationsConfig(lib.DefaultExecutorName)
-	ds.VUs = vus
-	ds.Iterations = iters
-	if duration.Valid {
-		ds.MaxDuration = duration
-	}
-	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
-}
+// func getSharedIterationsExecution(iters null.Int, duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap {
+// 	ds := NewSharedIterationsConfig(lib.DefaultExecutorName)
+// 	ds.VUs = vus
+// 	ds.Iterations = iters
+// 	if duration.Valid {
+// 		ds.MaxDuration = duration
+// 	}
+// 	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
+// }
 
 // DeriveExecutionFromShortcuts checks for conflicting options and turns any
 // shortcut options (i.e. duration, iterations, stages) into the proper
@@ -83,7 +82,7 @@ func DeriveExecutionFromShortcuts(opts lib.Options) (lib.Options, error) {
 				"using an execution configuration shortcut (`iterations`) and `execution` simultaneously is not allowed",
 			)
 		}
-		result.Execution = getSharedIterationsExecution(opts.Iterations, opts.Duration, opts.VUs)
+		// result.Execution = getSharedIterationsExecution(opts.Iterations, opts.Duration, opts.VUs)
 
 	case opts.Duration.Valid:
 		if len(opts.Stages) > 0 { // stages isn't nil (not set) and isn't explicitly set to empty
@@ -102,7 +101,7 @@ func DeriveExecutionFromShortcuts(opts lib.Options) (lib.Options, error) {
 				"`duration` should be more than 0, for infinite duration use the externally-controlled executor",
 			)
 		}
-		result.Execution = getConstantLoopingVUsExecution(opts.Duration, opts.VUs)
+		// result.Execution = getConstantLoopingVUsExecution(opts.Duration, opts.VUs)
 
 	case len(opts.Stages) > 0: // stages isn't nil (not set) and isn't explicitly set to empty
 		if opts.Execution != nil {
@@ -110,7 +109,7 @@ func DeriveExecutionFromShortcuts(opts lib.Options) (lib.Options, error) {
 				"using an execution configuration shortcut (`stages`) and `execution` simultaneously is not allowed",
 			)
 		}
-		result.Execution = getVariableLoopingVUsExecution(opts.Stages, opts.VUs)
+		// result.Execution = getVariableLoopingVUsExecution(opts.Stages, opts.VUs)
 
 	case len(opts.Execution) > 0:
 		// Do nothing, execution was explicitly specified

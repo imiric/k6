@@ -35,45 +35,7 @@ import (
 	"github.com/loadimpact/k6/stats"
 )
 
-func sumStagesDuration(stages []Stage) (result time.Duration) {
-	for _, s := range stages {
-		result += time.Duration(s.Duration.Duration)
-	}
-	return
-}
-
-func getStagesUnscaledMaxTarget(unscaledStartValue int64, stages []Stage) int64 {
-	max := unscaledStartValue
-	for _, s := range stages {
-		if s.Target.Int64 > max {
-			max = s.Target.Int64
-		}
-	}
-	return max
-}
-
-// A helper function to avoid code duplication
-func validateStages(stages []Stage) []error {
-	var errors []error
-	if len(stages) == 0 {
-		errors = append(errors, fmt.Errorf("at least one stage has to be specified"))
-	} else {
-		for i, s := range stages {
-			stageNum := i + 1
-			if !s.Duration.Valid {
-				errors = append(errors, fmt.Errorf("stage %d doesn't have a duration", stageNum))
-			} else if s.Duration.Duration < 0 {
-				errors = append(errors, fmt.Errorf("the duration for stage %d shouldn't be negative", stageNum))
-			}
-			if !s.Target.Valid {
-				errors = append(errors, fmt.Errorf("stage %d doesn't have a target", stageNum))
-			} else if s.Target.Int64 < 0 {
-				errors = append(errors, fmt.Errorf("the target for stage %d shouldn't be negative", stageNum))
-			}
-		}
-	}
-	return errors
-}
+const minDuration = 1 * time.Second
 
 // getIterationRunner is a helper function that returns an iteration executor
 // closure. It takes care of updating the execution state statistics and
