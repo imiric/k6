@@ -331,9 +331,9 @@ func (e *Engine) processThresholds(abort func()) {
 	}
 }
 
-func (e *Engine) processSamplesForMetrics(sampleCointainers []stats.SampleContainer) {
-	for _, sampleCointainer := range sampleCointainers {
-		samples := sampleCointainer.GetSamples()
+func (e *Engine) processSamplesForMetrics(sampleContainers []stats.SampleContainer) {
+	for _, sampleContainer := range sampleContainers {
+		samples := sampleContainer.GetSamples()
 
 		if len(samples) == 0 {
 			continue
