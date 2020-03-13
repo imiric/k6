@@ -22,8 +22,10 @@ package executor
 
 import (
 	"github.com/sirupsen/logrus"
+	null "gopkg.in/guregu/null.v3"
 
 	"github.com/loadimpact/k6/lib"
+	"github.com/loadimpact/k6/lib/types"
 )
 
 // ExecutionConflictError is a custom error type used for all of the errors in
@@ -43,16 +45,16 @@ var _ error = ExecutionConflictError("")
 // 	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
 // }
 
-// func getVariableLoopingVUsExecution(stages []lib.Stage, startVUs null.Int) lib.ExecutorConfigMap {
-// 	ds := NewVariableLoopingVUsConfig(lib.DefaultExecutorName)
-// 	ds.StartVUs = startVUs
-// 	for _, s := range stages {
-// 		if s.Duration.Valid {
-// 			ds.Stages = append(ds.Stages, Stage{Duration: s.Duration, Target: s.Target})
-// 		}
-// 	}
-// 	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
-// }
+func getVariableLoopingVUsExecution(stages []lib.Stage, startVUs null.Int) lib.ExecutorConfigMap {
+	ds := NewVariableLoopingVUsConfig(lib.DefaultExecutorName)
+	ds.StartVUs = startVUs
+	for _, s := range stages {
+		if s.Duration.Valid {
+			ds.Stages = append(ds.Stages, Stage{Duration: s.Duration, Target: s.Target})
+		}
+	}
+	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
+}
 
 // func getSharedIterationsExecution(iters null.Int, duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap {
 // 	ds := NewSharedIterationsConfig(lib.DefaultExecutorName)
@@ -109,7 +111,7 @@ func DeriveExecutionFromShortcuts(opts lib.Options) (lib.Options, error) {
 				"using an execution configuration shortcut (`stages`) and `execution` simultaneously is not allowed",
 			)
 		}
-		// result.Execution = getVariableLoopingVUsExecution(opts.Stages, opts.VUs)
+		result.Execution = getVariableLoopingVUsExecution(opts.Stages, opts.VUs)
 
 	case len(opts.Execution) > 0:
 		// Do nothing, execution was explicitly specified
