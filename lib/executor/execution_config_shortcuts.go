@@ -56,15 +56,15 @@ func getVariableLoopingVUsExecution(stages []lib.Stage, startVUs null.Int) lib.E
 	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
 }
 
-// func getSharedIterationsExecution(iters null.Int, duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap {
-// 	ds := NewSharedIterationsConfig(lib.DefaultExecutorName)
-// 	ds.VUs = vus
-// 	ds.Iterations = iters
-// 	if duration.Valid {
-// 		ds.MaxDuration = duration
-// 	}
-// 	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
-// }
+func getSharedIterationsExecution(iters null.Int, duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap {
+	ds := NewSharedIterationsConfig(lib.DefaultExecutorName)
+	ds.VUs = vus
+	ds.Iterations = iters
+	if duration.Valid {
+		ds.MaxDuration = duration
+	}
+	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
+}
 
 // DeriveExecutionFromShortcuts checks for conflicting options and turns any
 // shortcut options (i.e. duration, iterations, stages) into the proper
@@ -84,7 +84,7 @@ func DeriveExecutionFromShortcuts(opts lib.Options) (lib.Options, error) {
 				"using an execution configuration shortcut (`iterations`) and `execution` simultaneously is not allowed",
 			)
 		}
-		// result.Execution = getSharedIterationsExecution(opts.Iterations, opts.Duration, opts.VUs)
+		result.Execution = getSharedIterationsExecution(opts.Iterations, opts.Duration, opts.VUs)
 
 	case opts.Duration.Valid:
 		if len(opts.Stages) > 0 { // stages isn't nil (not set) and isn't explicitly set to empty
