@@ -32,7 +32,6 @@ import (
 
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/types"
-	"github.com/loadimpact/k6/stats"
 )
 
 const minDuration = 1 * time.Second
@@ -43,10 +42,10 @@ const minDuration = 1 * time.Second
 //
 // TODO: emit the end-of-test iteration metrics here (https://github.com/loadimpact/k6/issues/1250)
 func getIterationRunner(
-	executionState *lib.ExecutionState, logger *logrus.Entry, _ chan<- stats.SampleContainer,
-) func(context.Context, lib.VU) {
-	return func(ctx context.Context, vu lib.VU) {
-		err := vu.RunOnce(ctx)
+	executionState *lib.ExecutionState, logger *logrus.Entry,
+) func(context.Context, lib.ActiveVU) {
+	return func(ctx context.Context, vu lib.ActiveVU) {
+		err := vu.RunOnce()
 
 		//TODO: track (non-ramp-down) errors from script iterations as a metric,
 		// and have a default threshold that will abort the script when the error
