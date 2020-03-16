@@ -38,12 +38,12 @@ func (e ExecutionConflictError) Error() string {
 
 var _ error = ExecutionConflictError("")
 
-// func getConstantLoopingVUsExecution(duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap {
-// 	ds := NewConstantLoopingVUsConfig(lib.DefaultExecutorName)
-// 	ds.VUs = vus
-// 	ds.Duration = duration
-// 	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
-// }
+func getConstantLoopingVUsExecution(duration types.NullDuration, vus null.Int) lib.ExecutorConfigMap {
+	ds := NewConstantLoopingVUsConfig(lib.DefaultExecutorName)
+	ds.VUs = vus
+	ds.Duration = duration
+	return lib.ExecutorConfigMap{lib.DefaultExecutorName: ds}
+}
 
 func getVariableLoopingVUsExecution(stages []lib.Stage, startVUs null.Int) lib.ExecutorConfigMap {
 	ds := NewVariableLoopingVUsConfig(lib.DefaultExecutorName)
@@ -103,7 +103,7 @@ func DeriveExecutionFromShortcuts(opts lib.Options) (lib.Options, error) {
 				"`duration` should be more than 0, for infinite duration use the externally-controlled executor",
 			)
 		}
-		// result.Execution = getConstantLoopingVUsExecution(opts.Duration, opts.VUs)
+		result.Execution = getConstantLoopingVUsExecution(opts.Duration, opts.VUs)
 
 	case len(opts.Stages) > 0: // stages isn't nil (not set) and isn't explicitly set to empty
 		if opts.Execution != nil {

@@ -34,8 +34,6 @@ import (
 	"github.com/loadimpact/k6/lib/types"
 )
 
-const minDuration = 1 * time.Second
-
 func sumStagesDuration(stages []Stage) (result time.Duration) {
 	for _, s := range stages {
 		result += time.Duration(s.Duration.Duration)
