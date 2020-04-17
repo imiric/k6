@@ -95,6 +95,12 @@ func (r MiniRunner) GetDefaultGroup() *lib.Group {
 	return r.Group
 }
 
+// GetExports satisfies lib.Runner, but is a no-op for MiniRunner since
+// it doesn't deal with JS.
+func (r MiniRunner) GetExports() map[string]struct{} {
+	return make(map[string]struct{})
+}
+
 // GetOptions returns the supplied options struct.
 func (r MiniRunner) GetOptions() lib.Options {
 	return r.Options
