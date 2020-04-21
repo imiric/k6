@@ -406,6 +406,14 @@ func (u *VU) Activate(params *lib.VUActivationParams) lib.ActiveVU {
 		params.Exec = "default"
 	}
 
+	if len(params.Tags) > 0 {
+		tags := u.Runner.Bundle.Options.RunTags.CloneTags()
+		for k, v := range params.Tags {
+			tags[k] = v
+		}
+		u.Runner.Bundle.Options.RunTags = stats.IntoSampleTags(&tags)
+	}
+
 	go func() {
 		<-params.RunContext.Done()
 		u.Runtime.Interrupt(errInterrupt)
