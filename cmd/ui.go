@@ -337,21 +337,19 @@ func showProgress(
 			outMutex.Unlock()
 			return
 		case <-winch:
-			if !errTermGetSize {
+			if stdoutTTY && !errTermGetSize {
 				// More responsive progress bar resizing on platforms with SIGWINCH (*nix)
-				var err error
-				termWidth, _, err = terminal.GetSize(fd)
-				if !(termWidth > 0) || err != nil {
-					termWidth = defaultTermWidth
+				tw, _, err := terminal.GetSize(fd)
+				if tw > 0 && err == nil {
+					termWidth = tw
 				}
 			}
 		case <-ticker.C:
 			// Default ticker-based progress bar resizing
-			if !errTermGetSize && winch == nil {
-				var err error
-				termWidth, _, err = terminal.GetSize(fd)
-				if !(termWidth > 0) || err != nil {
-					termWidth = defaultTermWidth
+			if stdoutTTY && !errTermGetSize && winch == nil {
+				tw, _, err := terminal.GetSize(fd)
+				if tw > 0 && err == nil {
+					termWidth = tw
 				}
 			}
 		}
