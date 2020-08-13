@@ -31,21 +31,21 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/domainr/dnsr"
-	"github.com/dop251/goja"
-	"github.com/oxtoacart/bpool"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/afero"
-	"golang.org/x/net/http2"
-	"golang.org/x/time/rate"
-
 	"github.com/loadimpact/k6/js/common"
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/loader"
 	"github.com/loadimpact/k6/stats"
+
+	"github.com/dop251/goja"
+	"github.com/oxtoacart/bpool"
+	"github.com/pkg/errors"
+	sdns "github.com/semihalev/sdns/middleware/resolver"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
+	"golang.org/x/net/http2"
+	"golang.org/x/time/rate"
 )
 
 //nolint:gochecknoglobals
@@ -60,7 +60,7 @@ type Runner struct {
 	defaultGroup *lib.Group
 
 	BaseDialer net.Dialer
-	Resolver   *dnsr.Resolver
+	Resolver   *sdns.Resolver
 	RPSLimit   *rate.Limiter
 
 	console   *console
@@ -99,8 +99,9 @@ func NewFromBundle(b *Bundle) (*Runner, error) {
 			KeepAlive: 30 * time.Second,
 			DualStack: true,
 		},
-		console:  newConsole(),
-		Resolver: dnsr.NewExpiring(0),
+		console: newConsole(),
+		// XXX: Why does the Runner need a separate resolver?
+		Resolver: netext.NewResolver(),
 	}
 
 	err = r.SetOptions(r.Bundle.Options)
