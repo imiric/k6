@@ -68,7 +68,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4 // indirect
 	github.com/zyedidia/highlight v0.0.0-20170330143449-201131ce5cf5
-	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
 	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7
 	golang.org/x/text v0.3.2
 	golang.org/x/time v0.0.0-20170927054726-6dc17368e09b
@@ -84,7 +84,6 @@ replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.0.0
 	github.com/stretchr/testify => github.com/stretchr/testify v1.2.1
 	github.com/ugorji/go => github.com/ugorji/go v0.0.0-20180112141927-9831f2c3ac10
-	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20180308185624-c7dcf104e3a7
 	golang.org/x/net => golang.org/x/net v0.0.0-20181201002055-351d144fa1fc
 	golang.org/x/sys => golang.org/x/sys v0.0.0-20180312081825-c28acc882ebc
 	golang.org/x/text => golang.org/x/text v0.3.0
