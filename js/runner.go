@@ -41,6 +41,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/oxtoacart/bpool"
 	"github.com/pkg/errors"
+	cachem "github.com/semihalev/sdns/middleware/cache"
 	sdns "github.com/semihalev/sdns/middleware/resolver"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
@@ -156,6 +157,7 @@ func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, 
 	dialer := &netext.Dialer{
 		Dialer:    r.BaseDialer,
 		Resolver:  r.Resolver,
+		DNSCache:  cachem.New(netext.ResolverConfig()),
 		IP4:       make(map[string]bool),
 		CNAME:     make(map[string]netext.CanonicalName),
 		Blacklist: r.Bundle.Options.BlacklistIPs,

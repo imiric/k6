@@ -36,7 +36,9 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/semihalev/sdns/authcache"
+	"github.com/semihalev/sdns/cache"
 	sdnsc "github.com/semihalev/sdns/config"
+	cachem "github.com/semihalev/sdns/middleware/cache"
 	sdns "github.com/semihalev/sdns/middleware/resolver"
 )
 
@@ -57,7 +59,9 @@ var (
 type Dialer struct {
 	net.Dialer
 
-	Resolver  *sdns.Resolver
+	Resolver *sdns.Resolver
+	// Unexport this
+	DNSCache  *cachem.Cache
 	ctx       context.Context
 	IP4       map[string]bool // IPv4 last seen
 	CNAME     map[string]CanonicalName
@@ -80,13 +84,14 @@ func NewDialer(dialer net.Dialer) *Dialer {
 	return &Dialer{
 		Dialer:   dialer,
 		Resolver: NewResolver(),
+		DNSCache: cachem.New(ResolverConfig()),
 		IP4:      make(map[string]bool),
 		CNAME:    make(map[string]CanonicalName),
 	}
 }
 
 func NewResolver() *sdns.Resolver {
-	return sdns.NewResolver(resolverConfig())
+	return sdns.NewResolver(ResolverConfig())
 }
 
 // BlackListedIPError is an error that is returned when a given IP is blacklisted
@@ -114,7 +119,7 @@ func authServers() *authcache.AuthServers {
 	return authcacheServers
 }
 
-func resolverConfig() *sdnsc.Config {
+func ResolverConfig() *sdnsc.Config {
 	cfg := new(sdnsc.Config)
 	cfg.RootServers = nameservers
 	cfg.Maxdepth = 30
@@ -399,9 +404,14 @@ func (d *Dialer) lookup46(host string) (net.IP, dns.RR, error) {
 // lookup6 performs a single lookup for IPv6.
 func (d *Dialer) lookup6(host string) (net.IP, dns.RR, error) {
 	req := makeDNSReq(host, dns.TypeA)
-	resp, err := d.Resolver.Resolve(d.ctx, req, authServers(), false, 30, 0, false, nil)
-	if err != nil {
-		return nil, nil, err
+	key := cache.Hash(req.Question[0])
+	resp, _, err := d.DNSCache.GetP(key, req)
+	if resp == nil || err != nil {
+		resp, err = d.Resolver.Resolve(d.ctx, req, authServers(), false, 30, 0, false, nil)
+		d.DNSCache.Set(key, resp)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	if len(resp.Answer) > 0 {
 		ip, cname := findIP6(resp.Answer)
@@ -418,9 +428,14 @@ func (d *Dialer) lookup6(host string) (net.IP, dns.RR, error) {
 // lookup4 performs a single lookup for IPv4.
 func (d *Dialer) lookup4(host string) (net.IP, dns.RR, error) {
 	req := makeDNSReq(host, dns.TypeA)
-	resp, err := d.Resolver.Resolve(d.ctx, req, authServers(), false, 30, 0, false, nil)
-	if err != nil {
-		return nil, nil, err
+	key := cache.Hash(req.Question[0])
+	resp, _, err := d.DNSCache.GetP(key, req)
+	if resp == nil || err != nil {
+		resp, err = d.Resolver.Resolve(d.ctx, req, authServers(), false, 30, 0, false, nil)
+		d.DNSCache.Set(key, resp)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	if len(resp.Answer) > 0 {
 		ip, cname := findIP4(resp.Answer)

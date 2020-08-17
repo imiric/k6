@@ -209,9 +209,11 @@ github.com/semihalev/sdns/cache
 github.com/semihalev/sdns/config
 github.com/semihalev/sdns/dnsutil
 github.com/semihalev/sdns/middleware
+github.com/semihalev/sdns/middleware/cache
 github.com/semihalev/sdns/middleware/resolver
 github.com/semihalev/sdns/mock
 github.com/semihalev/sdns/response
+github.com/semihalev/sdns/waitgroup
 # github.com/serenize/snaker v0.0.0-20171204205717-a683aaf2d516
 ## explicit
 github.com/serenize/snaker
