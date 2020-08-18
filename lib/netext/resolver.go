@@ -45,9 +45,15 @@ var (
 	}
 )
 
-// Resolver is the DNS resolution interface.
+// Resolver is the public DNS resolution interface.
 type Resolver interface {
 	Resolve(ctx context.Context, host string, depth uint8) (net.IP, error)
+}
+
+// baseResolver is an internal interface used to mock out the underlying
+// resolver in tests.
+type baseResolver interface {
+	resolve(context.Context, *dns.Msg) (*dns.Msg, error)
 }
 
 // NewResolver returns a new DNS resolver with a preconfigured cache.
@@ -60,31 +66,21 @@ func NewResolver() Resolver {
 	cfg.CacheSize = 1024
 	cfg.Timeout.Duration = 2 * time.Second
 
-	authservers := &authcache.AuthServers{}
-	authservers.Zone = "."
-	for _, ns := range nameservers {
-		host, _, _ := net.SplitHostPort(ns)
-		if ip := net.ParseIP(host); ip != nil {
-			authservers.List = append(authservers.List, authcache.NewAuthServer(ns, authcache.IPv4))
-		}
-	}
-
 	return &resolver{
-		Resolver:    sdns.NewResolver(cfg),
-		authservers: authservers,
-		cache:       cachem.New(cfg),
-		ip4:         make(map[string]bool),
-		cname:       make(map[string]canonicalName),
+		baseResolver: newSdnsResolver(cfg),
+		cache:        cachem.New(cfg),
+		ip4:          make(map[string]bool),
+		cname:        make(map[string]canonicalName),
 	}
 }
 
 type resolver struct {
-	*sdns.Resolver
-	ctx         context.Context
-	authservers *authcache.AuthServers
-	cache       *cachem.Cache
-	ip4         map[string]bool // IPv4 last seen
-	cname       map[string]canonicalName
+	baseResolver baseResolver
+	ctx          context.Context
+	authservers  *authcache.AuthServers
+	cache        *cachem.Cache
+	ip4          map[string]bool // IPv4 last seen
+	cname        map[string]canonicalName
 }
 
 // canonicalName is an expiring CNAME value.
@@ -92,6 +88,31 @@ type canonicalName struct {
 	Name   string
 	TTL    time.Duration
 	Expiry time.Time
+}
+
+type sdnsResolver struct {
+	*sdns.Resolver
+	authservers *authcache.AuthServers
+}
+
+func newSdnsResolver(cfg *config.Config) baseResolver {
+	authservers := &authcache.AuthServers{}
+	authservers.Zone = "." // should this be dynamic?
+	for _, ns := range nameservers {
+		host, _, _ := net.SplitHostPort(ns)
+		if ip := net.ParseIP(host); ip != nil {
+			authservers.List = append(authservers.List, authcache.NewAuthServer(ns, authcache.IPv4))
+		}
+	}
+
+	return &sdnsResolver{
+		Resolver:    sdns.NewResolver(cfg),
+		authservers: authservers,
+	}
+}
+
+func (r *sdnsResolver) resolve(ctx context.Context, req *dns.Msg) (*dns.Msg, error) {
+	return r.Resolver.Resolve(ctx, req, r.authservers, false, 30, 0, false, nil)
 }
 
 // Resolve maps a host string to an IP address.
@@ -217,8 +238,10 @@ func (r *resolver) lookup6(host string) (net.IP, dns.RR, error) {
 	key := cache.Hash(req.Question[0])
 	resp, _, err := r.cache.GetP(key, req)
 	if resp == nil || err != nil {
-		resp, err = r.Resolver.Resolve(r.ctx, req, r.authservers, false, 30, 0, false, nil)
-		r.cache.Set(key, resp)
+		resp, err = r.baseResolver.resolve(r.ctx, req)
+		if resp != nil {
+			r.cache.Set(key, resp)
+		}
 		if err != nil {
 			return nil, nil, err
 		}
@@ -241,8 +264,10 @@ func (r *resolver) lookup4(host string) (net.IP, dns.RR, error) {
 	key := cache.Hash(req.Question[0])
 	resp, _, err := r.cache.GetP(key, req)
 	if resp == nil || err != nil {
-		resp, err = r.Resolver.Resolve(r.ctx, req, r.authservers, false, 30, 0, false, nil)
-		r.cache.Set(key, resp)
+		resp, err = r.baseResolver.resolve(r.ctx, req)
+		if resp != nil {
+			r.cache.Set(key, resp)
+		}
 		if err != nil {
 			return nil, nil, err
 		}
