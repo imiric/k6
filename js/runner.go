@@ -41,8 +41,6 @@ import (
 	"github.com/dop251/goja"
 	"github.com/oxtoacart/bpool"
 	"github.com/pkg/errors"
-	cachem "github.com/semihalev/sdns/middleware/cache"
-	sdns "github.com/semihalev/sdns/middleware/resolver"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"golang.org/x/net/http2"
@@ -61,7 +59,7 @@ type Runner struct {
 	defaultGroup *lib.Group
 
 	BaseDialer net.Dialer
-	Resolver   *sdns.Resolver
+	Resolver   netext.Resolver
 	RPSLimit   *rate.Limiter
 
 	console   *console
@@ -100,8 +98,7 @@ func NewFromBundle(b *Bundle) (*Runner, error) {
 			KeepAlive: 30 * time.Second,
 			DualStack: true,
 		},
-		console: newConsole(),
-		// XXX: Why does the Runner need a separate resolver?
+		console:  newConsole(),
 		Resolver: netext.NewResolver(),
 	}
 
@@ -157,9 +154,6 @@ func (r *Runner) newVU(id int64, samplesOut chan<- stats.SampleContainer) (*VU, 
 	dialer := &netext.Dialer{
 		Dialer:    r.BaseDialer,
 		Resolver:  r.Resolver,
-		DNSCache:  cachem.New(netext.ResolverConfig()),
-		IP4:       make(map[string]bool),
-		CNAME:     make(map[string]netext.CanonicalName),
 		Blacklist: r.Bundle.Options.BlacklistIPs,
 		Hosts:     r.Bundle.Options.Hosts,
 	}
