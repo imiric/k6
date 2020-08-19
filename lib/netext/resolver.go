@@ -45,19 +45,14 @@ var (
 	}
 )
 
-// Resolver is the public DNS resolution interface.
-type Resolver interface {
-	Resolve(ctx context.Context, host string, depth uint8) (net.IP, error)
+// BaseResolver is the low level DNS resolution interface.
+type BaseResolver interface {
+	Resolve(context.Context, *dns.Msg) (*dns.Msg, error)
 }
 
-// baseResolver is an internal interface used to mock out the underlying
-// resolver in tests.
-type baseResolver interface {
-	resolve(context.Context, *dns.Msg) (*dns.Msg, error)
-}
-
-// NewResolver returns a new DNS resolver with a preconfigured cache.
-func NewResolver() Resolver {
+// NewResolver returns a new DNS resolver with a preconfigured TTL-based cache
+// using the given base resolver. If nil, the sdns resolver will be used.
+func NewResolver(base BaseResolver) *Resolver {
 	cfg := new(config.Config)
 	cfg.RootServers = nameservers
 	// TODO: Make this configurable?
@@ -66,21 +61,25 @@ func NewResolver() Resolver {
 	cfg.CacheSize = 1024
 	cfg.Timeout.Duration = 2 * time.Second
 
-	return &resolver{
-		baseResolver: newSdnsResolver(cfg),
+	if base == nil {
+		base = newSdnsResolver(cfg)
+	}
+
+	return &Resolver{
+		BaseResolver: base,
 		cache:        cachem.New(cfg),
 		ip4:          make(map[string]bool),
 		cname:        make(map[string]canonicalName),
 	}
 }
 
-type resolver struct {
-	baseResolver baseResolver
-	ctx          context.Context
-	authservers  *authcache.AuthServers
-	cache        *cachem.Cache
-	ip4          map[string]bool // IPv4 last seen
-	cname        map[string]canonicalName
+type Resolver struct {
+	BaseResolver
+	ctx         context.Context
+	authservers *authcache.AuthServers
+	cache       *cachem.Cache
+	ip4         map[string]bool // IPv4 last seen
+	cname       map[string]canonicalName
 }
 
 // canonicalName is an expiring CNAME value.
@@ -95,7 +94,7 @@ type sdnsResolver struct {
 	authservers *authcache.AuthServers
 }
 
-func newSdnsResolver(cfg *config.Config) baseResolver {
+func newSdnsResolver(cfg *config.Config) BaseResolver {
 	authservers := &authcache.AuthServers{}
 	authservers.Zone = "." // should this be dynamic?
 	for _, ns := range nameservers {
@@ -111,14 +110,14 @@ func newSdnsResolver(cfg *config.Config) baseResolver {
 	}
 }
 
-func (r *sdnsResolver) resolve(ctx context.Context, req *dns.Msg) (*dns.Msg, error) {
+func (r *sdnsResolver) Resolve(ctx context.Context, req *dns.Msg) (*dns.Msg, error) {
 	return r.Resolver.Resolve(ctx, req, r.authservers, false, 30, 0, false, nil)
 }
 
 // Resolve maps a host string to an IP address.
 // Host string may be an IP address string or a domain name.
 // Follows CNAME chain up to depth steps.
-func (r *resolver) Resolve(ctx context.Context, host string, depth uint8) (net.IP, error) {
+func (r *Resolver) Resolve(ctx context.Context, host string, depth uint8) (net.IP, error) {
 	r.ctx = ctx
 	ip := net.ParseIP(host)
 	if ip != nil {
@@ -136,7 +135,7 @@ func (r *resolver) Resolve(ctx context.Context, host string, depth uint8) (net.I
 // Prefers IPv4 if last resolution produced it.
 // Otherwise prefers IPv6.
 // Package config constrains to only IP versions available on the system.
-func (r *resolver) lookup(host string) (net.IP, dns.RR, error) {
+func (r *Resolver) lookup(host string) (net.IP, dns.RR, error) {
 	if ip6 && ip4 {
 		// Both versions available
 		if r.ip4[host] {
@@ -179,7 +178,7 @@ func (r *resolver) lookup(host string) (net.IP, dns.RR, error) {
 // lookup64 performs a single lookup preferring IPv6.
 // Used on first resolution, if last resolution failed,
 // or if last resolution produced IPv6.
-func (r *resolver) lookup64(host string) (net.IP, dns.RR, error) {
+func (r *Resolver) lookup64(host string) (net.IP, dns.RR, error) {
 	ip, cname, err := r.lookup6(host)
 	if err != nil {
 		return nil, nil, err
@@ -207,7 +206,7 @@ func (r *resolver) lookup64(host string) (net.IP, dns.RR, error) {
 // lookup46 performs a single lookup preferring IPv4.
 // Used if last resolution produced IPv4.
 // Prevents hitting network looking for IPv6 for names with only IPv4.
-func (r *resolver) lookup46(host string) (net.IP, dns.RR, error) {
+func (r *Resolver) lookup46(host string) (net.IP, dns.RR, error) {
 	ip, cname, err := r.lookup4(host)
 	if err != nil {
 		return nil, nil, err
@@ -233,12 +232,12 @@ func (r *resolver) lookup46(host string) (net.IP, dns.RR, error) {
 }
 
 // lookup6 performs a single lookup for IPv6.
-func (r *resolver) lookup6(host string) (net.IP, dns.RR, error) {
+func (r *Resolver) lookup6(host string) (net.IP, dns.RR, error) {
 	req := makeReq(host, dns.TypeA)
 	key := cache.Hash(req.Question[0])
 	resp, _, err := r.cache.GetP(key, req)
 	if resp == nil || err != nil {
-		resp, err = r.baseResolver.resolve(r.ctx, req)
+		resp, err = r.BaseResolver.Resolve(r.ctx, req)
 		if resp != nil {
 			r.cache.Set(key, resp)
 		}
@@ -259,12 +258,12 @@ func (r *resolver) lookup6(host string) (net.IP, dns.RR, error) {
 }
 
 // lookup4 performs a single lookup for IPv4.
-func (r *resolver) lookup4(host string) (net.IP, dns.RR, error) {
+func (r *Resolver) lookup4(host string) (net.IP, dns.RR, error) {
 	req := makeReq(host, dns.TypeA)
 	key := cache.Hash(req.Question[0])
 	resp, _, err := r.cache.GetP(key, req)
 	if resp == nil || err != nil {
-		resp, err = r.baseResolver.resolve(r.ctx, req)
+		resp, err = r.BaseResolver.Resolve(r.ctx, req)
 		if resp != nil {
 			r.cache.Set(key, resp)
 		}
@@ -287,7 +286,7 @@ func (r *resolver) lookup4(host string) (net.IP, dns.RR, error) {
 // resolveName maps a domain name to an IP address.
 // Follows CNAME chain up to depth steps.
 // Fails on CNAME chain cycle.
-func (r *resolver) resolveName(
+func (r *Resolver) resolveName(
 	requested string,
 	name string,
 	depth uint8,
@@ -337,7 +336,7 @@ func (r *resolver) resolveName(
 // Follows CNAME chain up to depth steps.
 // Purges expired CNAME entries.
 // Fails on a cycle.
-func (r *resolver) canonicalName(name string, depth uint8) (string, error) {
+func (r *Resolver) canonicalName(name string, depth uint8) (string, error) {
 	cname := normalName(name)
 	observed := make(map[string]struct{})
 	observed[cname] = struct{}{}

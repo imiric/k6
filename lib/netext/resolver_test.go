@@ -1,113 +1,51 @@
 package netext
 
 import (
-	"context"
-	"fmt"
-	"net"
 	"os"
 	"testing"
 
-	"github.com/miekg/dns"
-	"github.com/semihalev/sdns/cache"
-	"github.com/semihalev/sdns/config"
-	cachem "github.com/semihalev/sdns/middleware/cache"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/loadimpact/k6/lib/testutils"
 )
 
-// mockResolver implements both netext.Resolver and netext.baseResolver
-type mockResolver struct {
-	hosts map[string]net.IP
-	cache *cache.Cache
-}
-
-func (r *mockResolver) Resolve(_ context.Context, host string, _ uint8) (resp *dns.Msg, err error) {
-	req := makeReq(host, dns.TypeA)
-	key := cache.Hash(req.Question[0])
-	if val, ok := r.cache.Get(key); !ok {
-		resp, err = r.resolve(nil, req)
-		if resp != nil {
-			r.cache.Add(key, resp)
-		}
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		resp = val.(*dns.Msg)
+func newTestResolver() *Resolver {
+	hosts := map[string]string{
+		"host4.test.": "5 IN A 127.0.0.1",
+		"host6.test.": "5 IN AAAA ::1",
 	}
-	return
-}
-
-func (r *mockResolver) resolve(_ context.Context, req *dns.Msg) (resp *dns.Msg, err error) {
-	resp = new(dns.Msg)
-	resp.SetReply(req)
-	host := req.Question[0].Name
-	if ip, ok := r.hosts[host]; ok {
-		var rtype string
-		if ip.To4() == nil {
-			rtype = "AAAA"
-		} else {
-			rtype = "A"
-		}
-		rs := fmt.Sprintf("%s 5 IN %s %s", host, rtype, ip)
-		rr, err := dns.NewRR(rs)
-		if err != nil {
-			return nil, err
-		}
-		resp.Answer = append(resp.Answer, rr)
-	}
-	return resp, nil
-}
-
-func newMockResolver() *mockResolver {
-	return &mockResolver{
-		cache: cache.New(1024),
-		hosts: map[string]net.IP{
-			"host4.test.": net.ParseIP("127.0.0.1"),
-			"host6.test.": net.ParseIP("::1"),
-		},
-	}
-}
-
-func newTestResolver() *resolver {
-	cfg := new(config.Config)
-	cfg.Expire = 600
-	cfg.CacheSize = 1024
-
-	return &resolver{
-		baseResolver: newMockResolver(),
-		cache:        cachem.New(cfg),
-		ip4:          make(map[string]bool),
-		cname:        make(map[string]canonicalName),
-	}
+	baseResolver := testutils.NewMockResolver(hosts)
+	return NewResolver(baseResolver)
 }
 
 func TestLookup(t *testing.T) {
 	t.Run("never resolved", func(t *testing.T) {
 		r := newTestResolver()
-		require.False(t, r.ip4["example.com."])
+		assert.False(t, r.ip4["example.com."])
 	})
 
 	t.Run("resolution failure", func(t *testing.T) {
 		r := newTestResolver()
 		_, _, err := r.lookup("example.badtld.")
 		require.Error(t, err)
-		require.False(t, r.ip4["example.badtld."])
+		assert.False(t, r.ip4["example.badtld."])
 	})
 
 	t.Run("find ipv6", func(t *testing.T) {
 		r := newTestResolver()
 		ip, _, err := r.lookup("host6.test.")
 		require.NoError(t, err)
-		require.True(t, ip.To4() == nil)
-		require.False(t, r.ip4["host6.test."])
+		assert.True(t, ip.To4() == nil)
+		assert.False(t, r.ip4["host6.test."])
 	})
 
 	t.Run("find ipv4", func(t *testing.T) {
 		r := newTestResolver()
 		ip, _, err := r.lookup("host4.test.")
 		require.NoError(t, err)
-		require.True(t, ip.To4() != nil)
-		require.True(t, r.ip4["host4.test."])
+		assert.Equal(t, "127.0.0.1", ip.String())
+		assert.True(t, r.ip4["host4.test."])
 	})
 }
 

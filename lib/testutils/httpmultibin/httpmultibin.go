@@ -48,6 +48,7 @@ import (
 
 	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/lib/netext/httpext"
+	"github.com/loadimpact/k6/lib/testutils"
 )
 
 // GetTLSClientConfig returns a TLS config that trusts the supplied
@@ -242,12 +243,13 @@ func NewHTTPMultiBin(t testing.TB) *HTTPMultiBin {
 	http2IP := net.ParseIP(http2URL.Hostname())
 	require.NotNil(t, http2IP)
 
+	resolver := netext.NewResolver(testutils.NewMockResolver(nil))
 	// Set up the dialer with shorter timeouts and the custom domains
 	dialer := netext.NewDialer(net.Dialer{
 		Timeout:   2 * time.Second,
 		KeepAlive: 10 * time.Second,
 		DualStack: true,
-	})
+	}, resolver)
 	dialer.Hosts = map[string]net.IP{
 		httpDomain:  httpIP,
 		httpsDomain: httpsIP,

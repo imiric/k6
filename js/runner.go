@@ -59,7 +59,7 @@ type Runner struct {
 	defaultGroup *lib.Group
 
 	BaseDialer net.Dialer
-	Resolver   netext.Resolver
+	Resolver   *netext.Resolver
 	RPSLimit   *rate.Limiter
 
 	console   *console
@@ -99,7 +99,7 @@ func NewFromBundle(b *Bundle) (*Runner, error) {
 			DualStack: true,
 		},
 		console:  newConsole(),
-		Resolver: netext.NewResolver(),
+		Resolver: netext.NewResolver(nil),
 	}
 
 	err = r.SetOptions(r.Bundle.Options)

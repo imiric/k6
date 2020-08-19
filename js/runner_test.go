@@ -55,6 +55,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	_ "github.com/loadimpact/k6/lib/executor" // TODO: figure out something better
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
 	"github.com/loadimpact/k6/stats"
@@ -1664,4 +1665,54 @@ func TestSystemTags(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDNSCache(t *testing.T) {
+	tb := httpmultibin.NewHTTPMultiBin(t)
+	defer tb.Cleanup()
+	sr := tb.Replacer.Replace
+
+	runner, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
+		var http = require("k6/http");
+		var url = "HTTPBIN_URL/";
+		exports.default = function() {
+			var res = http.get(url);
+			if (res.status != 200) { throw new Error("wrong status: " + res.status); }
+		}
+	`))
+	if !assert.NoError(t, err) {
+		return
+	}
+	runner.SetOptions(lib.Options{
+		Throw:        null.BoolFrom(true),
+		MaxRedirects: null.IntFrom(10),
+		// NoConnectionReuse: null.BoolFrom(true),
+	})
+
+	resolver := testutils.NewMockResolver(nil)
+	samples := make(chan stats.SampleContainer, 100)
+
+	runVU := func(rr string, expErr string) {
+		resolver.SetRR("httpbin.local.", rr)
+		initVU, err := runner.NewVU(1, samples)
+		// Replace the VU base resolver so that the DNS change can take effect.
+		(initVU.(*VU)).Dialer.Resolver.BaseResolver = resolver
+		require.NoError(t, err)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
+		err = vu.RunOnce()
+		if expErr != "" {
+			assert.Contains(t, err.Error(), expErr)
+		} else {
+			assert.NoError(t, err)
+		}
+	}
+
+	runVU("0 IN A 127.0.0.1", "")
+	// Needs to be high enough for the connection to time out(?).
+	// If NoConnectionReuse is specified, RunOnce() doesn't return an error. :-/
+	time.Sleep(5 * time.Second)
+	runVU("0 IN A 127.0.0.254",
+		sr("dial tcp 127.0.0.254:HTTPBIN_PORT: connect: connection refused"))
 }

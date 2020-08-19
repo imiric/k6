@@ -38,7 +38,7 @@ import (
 type Dialer struct {
 	net.Dialer
 	ctx       context.Context
-	Resolver  Resolver
+	Resolver  *Resolver
 	Blacklist []*lib.IPNet
 	Hosts     map[string]net.IP
 
@@ -47,7 +47,7 @@ type Dialer struct {
 }
 
 // NewDialer constructs a new custom Dialer that wraps dialer and uses resolver.
-func NewDialer(dialer net.Dialer, resolver Resolver) *Dialer {
+func NewDialer(dialer net.Dialer, resolver *Resolver) *Dialer {
 	return &Dialer{Dialer: dialer, Resolver: resolver}
 }
 

@@ -42,6 +42,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	"github.com/loadimpact/k6/lib/consts"
 	"github.com/loadimpact/k6/lib/netext"
+	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/stats"
 )
 
@@ -382,16 +383,19 @@ func TestRequestWithBinaryFile(t *testing.T) {
 	logger.Level = logrus.DebugLevel
 	logger.Out = ioutil.Discard
 
+	resolver := netext.NewResolver(testutils.NewMockResolver(nil))
+	dialer := netext.NewDialer(net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 60 * time.Second,
+		DualStack: true,
+	}, resolver)
+
 	state := &lib.State{
 		Options: lib.Options{},
 		Logger:  logger,
 		Group:   root,
 		Transport: &http.Transport{
-			DialContext: (netext.NewDialer(net.Dialer{
-				Timeout:   10 * time.Second,
-				KeepAlive: 60 * time.Second,
-				DualStack: true,
-			})).DialContext,
+			DialContext: dialer.DialContext,
 		},
 		BPool:   bpool.NewBufferPool(1),
 		Samples: make(chan stats.SampleContainer, 500),
