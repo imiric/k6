@@ -29,10 +29,12 @@ import (
 	"go/build"
 	"io/ioutil"
 	stdlog "log"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -55,6 +57,7 @@ import (
 	"github.com/loadimpact/k6/lib"
 	_ "github.com/loadimpact/k6/lib/executor" // TODO: figure out something better
 	"github.com/loadimpact/k6/lib/metrics"
+	"github.com/loadimpact/k6/lib/netext"
 	"github.com/loadimpact/k6/lib/testutils"
 	"github.com/loadimpact/k6/lib/testutils/httpmultibin"
 	"github.com/loadimpact/k6/lib/types"
@@ -1668,51 +1671,110 @@ func TestSystemTags(t *testing.T) {
 }
 
 func TestDNSCache(t *testing.T) {
-	tb := httpmultibin.NewHTTPMultiBin(t)
-	defer tb.Cleanup()
-	sr := tb.Replacer.Replace
+	// We need a predetermined random port and can't rely on :0
+	rand.Seed(time.Now().UnixNano())
+	svcPort := strconv.Itoa(rand.Intn(10000) + 55000)
+	dnsPort := strconv.Itoa(rand.Intn(1000) + 53000)
 
-	runner, err := getSimpleRunner("/script.js", tb.Replacer.Replace(`
-		var http = require("k6/http");
-		var url = "HTTPBIN_URL/";
-		exports.default = function() {
-			var res = http.get(url);
-			if (res.status != 200) { throw new Error("wrong status: " + res.status); }
-		}
-	`))
-	if !assert.NoError(t, err) {
-		return
+	var hitSvc1, hitSvc2 int
+	// Two HTTP services on different local addresses
+	svcs := map[string]*testutils.HTTPServer{
+		"127.0.0.2:" + svcPort: testutils.NewHTTPServer(
+			func(w http.ResponseWriter, req *http.Request) {
+				hitSvc1++
+			}),
+		"127.0.0.3:" + svcPort: testutils.NewHTTPServer(
+			func(w http.ResponseWriter, req *http.Request) {
+				hitSvc2++
+			}),
 	}
+
+	var (
+		wg         = &sync.WaitGroup{}
+		errCh      = make(chan error, 1)
+		mockRes    *testutils.MockResolver
+		dnsSrv     *testutils.DNSServer
+		dnsSrvAddr = "127.0.0.1:" + dnsPort
+		startDone  = make(chan struct{})
+	)
+	// Start all services
+	go func() {
+		for addr, svc := range svcs {
+			wg.Add(1)
+			go func(a string, s *testutils.HTTPServer) {
+				defer wg.Done()
+				if err := s.ListenAndServe(a); err != nil {
+					errCh <- err
+				}
+			}(addr, svc)
+		}
+
+		// Start a local DNS server with a mock resolver
+		mockRes = testutils.NewMockResolver(nil)
+		dnsSrv = testutils.NewDNSServer(mockRes)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := dnsSrv.ListenAndServe("udp", dnsSrvAddr); err != nil {
+				errCh <- err
+			}
+		}()
+
+		close(startDone)
+		wg.Wait()
+	}()
+
+	defer func() {
+		for _, svc := range svcs {
+			svc.Close()
+		}
+		_ = dnsSrv.Shutdown()
+	}()
+
+	<-startDone
+	// Override the default nameservers with our test server
+	netext.SetNS([]string{dnsSrvAddr})
+
+	runner, err := getSimpleRunner("/script.js", fmt.Sprintf(`
+		var http = require("k6/http");
+		exports.default = function() {
+			http.get("http://host.test:%s/");
+		}
+	`, svcPort))
+	require.NoError(t, err)
+
 	runner.SetOptions(lib.Options{
-		Throw:        null.BoolFrom(true),
-		MaxRedirects: null.IntFrom(10),
-		// NoConnectionReuse: null.BoolFrom(true),
+		Throw:             null.BoolFrom(true),
+		MaxRedirects:      null.IntFrom(10),
+		NoConnectionReuse: null.BoolFrom(true),
 	})
 
-	resolver := testutils.NewMockResolver(nil)
 	samples := make(chan stats.SampleContainer, 100)
+	initVU, err := runner.NewVU(1, samples)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
 
-	runVU := func(rr string, expErr string) {
-		resolver.SetRR("httpbin.local.", rr)
-		initVU, err := runner.NewVU(1, samples)
-		// Replace the VU base resolver so that the DNS change can take effect.
-		(initVU.(*VU)).Dialer.Resolver.BaseResolver = resolver
-		require.NoError(t, err)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		vu := initVU.Activate(&lib.VUActivationParams{RunContext: ctx})
-		err = vu.RunOnce()
-		if expErr != "" {
-			assert.Contains(t, err.Error(), expErr)
-		} else {
-			assert.NoError(t, err)
+	runVU := func(rr string) {
+		mockRes.SetRR("host.test.", rr)
+		err := vu.RunOnce()
+		if err != nil {
+			t.Errorf("error running VU: %s", err.Error())
 		}
 	}
 
-	runVU("0 IN A 127.0.0.1", "")
-	// Needs to be high enough for the connection to time out(?).
-	// If NoConnectionReuse is specified, RunOnce() doesn't return an error. :-/
+	runVU("0 IN A 127.0.0.2")
+	// XXX: Why is such a high delay needed?? With NoConnectionReuse and
+	// 0 TTL I would expect this to work without the sleep. :-S
 	time.Sleep(5 * time.Second)
-	runVU("0 IN A 127.0.0.254",
-		sr("dial tcp 127.0.0.254:HTTPBIN_PORT: connect: connection refused"))
+	runVU("0 IN A 127.0.0.3")
+
+	select {
+	case err := <-errCh:
+		t.Errorf("error starting services: %s", err.Error())
+	case <-time.After(1 * time.Second):
+		assert.Equal(t, 1, hitSvc1)
+		assert.Equal(t, 1, hitSvc2)
+	}
 }

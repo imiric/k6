@@ -41,10 +41,15 @@ func NewMockResolver(hosts map[string]string) *MockResolver {
 	if hosts == nil {
 		hosts = make(map[string]string)
 	}
-	return &MockResolver{&sync.Mutex{}, hosts}
+	return &MockResolver{
+		m:     &sync.Mutex{},
+		hosts: hosts,
+	}
 }
 
 func (r *MockResolver) Resolve(_ context.Context, req *dns.Msg) (resp *dns.Msg, err error) {
+	r.m.Lock()
+	defer r.m.Unlock()
 	resp = new(dns.Msg)
 	resp.SetReply(req)
 	host := req.Question[0].Name
@@ -62,4 +67,36 @@ func (r *MockResolver) SetRR(host, rr string) {
 	r.m.Lock()
 	defer r.m.Unlock()
 	r.hosts[host] = rr
+}
+
+// DNSServer is a standalone DNS server for testing purposes. It returns
+// responses resolved by the MockResolver r.
+type DNSServer struct {
+	*dns.Server
+	r *MockResolver
+}
+
+func NewDNSServer(r *MockResolver) *DNSServer {
+	return &DNSServer{r: r}
+}
+
+// ServeDNS implements the dns.Handler interface.
+func (s *DNSServer) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	resp, _ := s.r.Resolve(context.Background(), r)
+	// TODO: Handle err
+	w.WriteMsg(resp)
+}
+
+// ListenAndServe starts a DNS server on the specified network
+// ("udp" or "tcp") and address.
+func (s *DNSServer) ListenAndServe(network, addr string) error {
+	s.Server = &dns.Server{
+		Addr:          addr,
+		Net:           network,
+		Handler:       s,
+		MaxTCPQueries: 2048,
+		ReusePort:     true,
+	}
+
+	return s.Server.ListenAndServe()
 }

@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -38,6 +39,7 @@ import (
 
 var (
 	ip4, ip6 bool
+	m        = &sync.Mutex{}
 	// TODO: Read this from /etc/resolv.conf
 	nameservers = []string{
 		"1.1.1.1:53",
@@ -48,6 +50,13 @@ var (
 // BaseResolver is the low level DNS resolution interface.
 type BaseResolver interface {
 	Resolve(context.Context, *dns.Msg) (*dns.Msg, error)
+}
+
+// TODO: Think of a cleaner way of overriding nameservers...
+func SetNS(nss []string) {
+	m.Lock()
+	defer m.Unlock()
+	nameservers = nss
 }
 
 // NewResolver returns a new DNS resolver with a preconfigured TTL-based cache
