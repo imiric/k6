@@ -13,44 +13,35 @@ import (
 )
 
 // conf represents a system's network configuration.
-type conf struct {
+type Conf struct {
 	// machine has an /etc/mdns.allow file
-	hasMDNSAllow bool
+	HasMDNSAllow bool
 
 	goos string // the runtime.GOOS, to ease testing
 
-	nss    *nssConf
-	resolv *dnsConfig
+	NSS    *NSSConf
+	Resolv *DNSConfig
 }
 
 var (
 	confOnce sync.Once // guards init of confVal via initConfVal
-	confVal  = &conf{goos: runtime.GOOS}
+	confVal  = &Conf{goos: runtime.GOOS}
 )
 
-// systemConf returns the machine's network configuration.
-func systemConf() *conf {
+// SystemConf returns the machine's network configuration.
+func SystemConf() *Conf {
 	confOnce.Do(initConfVal)
 	return confVal
 }
 
 func initConfVal() {
 	if runtime.GOOS != "openbsd" {
-		confVal.nss = parseNSSConfFile("/etc/nsswitch.conf")
+		confVal.NSS = parseNSSConfFile("/etc/nsswitch.conf")
 	}
 
-	confVal.resolv = dnsReadConfig("/etc/resolv.conf")
-	// TODO: Handle any errors
-	// if confVal.resolv.err != nil && !os.IsNotExist(confVal.resolv.err) &&
-	// 	!os.IsPermission(confVal.resolv.err) {
-	// 	// If we can't read the resolv.conf file, assume it
-	// 	// had something important in it and defer to cgo.
-	// 	// libc's resolver might then fail too, but at least
-	// 	// it wasn't our fault.
-	// 	confVal.forceCgoLookupHost = true
-	// }
+	confVal.Resolv = dnsReadConfig("/etc/resolv.conf")
 
 	if _, err := os.Stat("/etc/mdns.allow"); err == nil {
-		confVal.hasMDNSAllow = true
+		confVal.HasMDNSAllow = true
 	}
 }

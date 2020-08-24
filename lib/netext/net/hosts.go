@@ -100,7 +100,7 @@ func readHosts() {
 }
 
 // lookupStaticHost looks up the addresses for the given host from /etc/hosts.
-func lookupStaticHost(host string) []string {
+func LookupStaticHost(host string) []string {
 	hosts.Lock()
 	defer hosts.Unlock()
 	readHosts()
@@ -119,7 +119,7 @@ func lookupStaticHost(host string) []string {
 }
 
 // lookupStaticAddr looks up the hosts for the given address from /etc/hosts.
-func lookupStaticAddr(addr string) []string {
+func LookupStaticAddr(addr string) []string {
 	hosts.Lock()
 	defer hosts.Unlock()
 	readHosts()

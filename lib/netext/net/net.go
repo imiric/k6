@@ -49,7 +49,3 @@ type ParseError struct {
 }
 
 func (e *ParseError) Error() string { return "invalid " + e.Type + ": " + e.Text }
-
-func SystemConf() *conf {
-	return systemConf()
-}

@@ -24,6 +24,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -35,16 +36,14 @@ import (
 	"github.com/semihalev/sdns/config"
 	cachem "github.com/semihalev/sdns/middleware/cache"
 	sdns "github.com/semihalev/sdns/middleware/resolver"
+
+	netstd "github.com/loadimpact/k6/lib/netext/net"
 )
 
 var (
-	ip4, ip6 bool
-	m        = &sync.Mutex{}
-	// TODO: Read this from /etc/resolv.conf
-	nameservers = []string{
-		"1.1.1.1:53",
-		"8.8.8.8:53",
-	}
+	ip4, ip6    bool
+	nsm         = &sync.RWMutex{}
+	nameservers []string
 )
 
 // BaseResolver is the low level DNS resolution interface.
@@ -52,16 +51,18 @@ type BaseResolver interface {
 	Resolve(context.Context, *dns.Msg) (*dns.Msg, error)
 }
 
-// TODO: Think of a cleaner way of overriding nameservers...
+// TODO: This is only needed for testing. Move to test package?
 func SetNS(nss []string) {
-	m.Lock()
-	defer m.Unlock()
+	nsm.Lock()
+	defer nsm.Unlock()
 	nameservers = nss
 }
 
 // NewResolver returns a new DNS resolver with a preconfigured TTL-based cache
 // using the given base resolver. If nil, the sdns resolver will be used.
 func NewResolver(base BaseResolver) *Resolver {
+	nsm.RLock()
+	defer nsm.RUnlock()
 	cfg := new(config.Config)
 	cfg.RootServers = nameservers
 	// TODO: Make this configurable?
@@ -104,6 +105,8 @@ type sdnsResolver struct {
 }
 
 func newSdnsResolver(cfg *config.Config) BaseResolver {
+	nsm.RLock()
+	defer nsm.RUnlock()
 	authservers := &authcache.AuthServers{}
 	authservers.Zone = "." // should this be dynamic?
 	for _, ns := range nameservers {
@@ -130,6 +133,9 @@ func (r *Resolver) Resolve(ctx context.Context, host string, depth uint8) (net.I
 	r.ctx = ctx
 	ip := net.ParseIP(host)
 	if ip != nil {
+		return ip, nil
+	}
+	if ip = r.resolveLocal(host); ip != nil {
 		return ip, nil
 	}
 	host, err := r.canonicalName(host, depth)
@@ -371,6 +377,41 @@ func (r *Resolver) canonicalName(name string, depth uint8) (string, error) {
 	return cname, nil
 }
 
+// resolveLocal attempts a local DNS resolution from /etc/hosts, but only if
+// "files" is configured for it in /etc/nsswitch.conf . It returns a random
+// IP if more than one is defined.
+func (r *Resolver) resolveLocal(host string) net.IP {
+	nss := netstd.SystemConf().NSS
+	if nss.Err != nil {
+		return nil
+	}
+
+	var readFiles bool
+	if hosts, ok := nss.Sources["hosts"]; !ok {
+		return nil
+	} else {
+		// Is this check sufficient? Do we need to read other entries, handle
+		// failover, etc.?
+		for _, h := range hosts {
+			if h.Source == "files" {
+				readFiles = true
+				break
+			}
+		}
+	}
+
+	if readFiles {
+		ips := netstd.LookupStaticHost(host)
+		if len(ips) > 0 {
+			// TODO: Something more sophisticated than random?
+			ip := ips[rand.Intn(len(ips))]
+			return net.ParseIP(ip)
+		}
+	}
+
+	return nil
+}
+
 // calculateExpiry calculates the expiry time of an RR.
 // Copied from github.com/domainr/dnsr/rr.go
 func calculateExpiry(drr dns.RR) (time.Duration, time.Time) {
@@ -466,7 +507,9 @@ func makeReq(hostname string, dnsType uint16) *dns.Msg {
 	return req
 }
 
-// init detects available IP network versions.
 func init() {
+	rand.Seed(time.Now().UnixNano())
 	detectInterfaces()
+	// TODO: Log any file parsing errors.
+	nameservers = netstd.SystemConf().Resolv.Servers
 }
