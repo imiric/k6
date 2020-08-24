@@ -9,9 +9,8 @@
 package net
 
 import (
-	"internal/bytealg"
+	"net"
 	"os"
-	"sync/atomic"
 	"time"
 )
 
@@ -75,9 +74,9 @@ func dnsReadConfig(filename string) *dnsConfig {
 				// just an IP address. Otherwise we need DNS
 				// to look it up.
 				if parseIPv4(f[1]) != nil {
-					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
+					conf.servers = append(conf.servers, net.JoinHostPort(f[1], "53"))
 				} else if ip, _ := parseIPv6Zone(f[1]); ip != nil {
-					conf.servers = append(conf.servers, JoinHostPort(f[1], "53"))
+					conf.servers = append(conf.servers, net.JoinHostPort(f[1], "53"))
 				}
 			}
 
@@ -156,24 +155,13 @@ func dnsReadConfig(filename string) *dnsConfig {
 	return conf
 }
 
-// serverOffset returns an offset that can be used to determine
-// indices of servers in c.servers when making queries.
-// When the rotate option is enabled, this offset increases.
-// Otherwise it is always 0.
-func (c *dnsConfig) serverOffset() uint32 {
-	if c.rotate {
-		return atomic.AddUint32(&c.soffset, 1) - 1 // return 0 to start
-	}
-	return 0
-}
-
 func dnsDefaultSearch() []string {
 	hn, err := getHostname()
 	if err != nil {
 		// best effort
 		return nil
 	}
-	if i := bytealg.IndexByteString(hn, '.'); i >= 0 && i < len(hn)-1 {
+	if i := IndexByteString(hn, '.'); i >= 0 && i < len(hn)-1 {
 		return []string{ensureRooted(hn[i+1:])}
 	}
 	return nil

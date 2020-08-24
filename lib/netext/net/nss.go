@@ -7,8 +7,8 @@
 package net
 
 import (
+	bytealg "bytes"
 	"errors"
-	"internal/bytealg"
 	"io"
 	"os"
 )

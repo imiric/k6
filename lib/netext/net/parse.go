@@ -8,7 +8,7 @@
 package net
 
 import (
-	"internal/bytealg"
+	bytealg "bytes"
 	"io"
 	"os"
 	"time"
@@ -84,7 +84,7 @@ func stat(name string) (mtime time.Time, size int64, err error) {
 func countAnyByte(s string, t string) int {
 	n := 0
 	for i := 0; i < len(s); i++ {
-		if bytealg.IndexByteString(t, s[i]) >= 0 {
+		if IndexByteString(t, s[i]) >= 0 {
 			n++
 		}
 	}
@@ -97,7 +97,7 @@ func splitAtBytes(s string, t string) []string {
 	n := 0
 	last := 0
 	for i := 0; i < len(s); i++ {
-		if bytealg.IndexByteString(t, s[i]) >= 0 {
+		if IndexByteString(t, s[i]) >= 0 {
 			if last < i {
 				a[n] = s[last:i]
 				n++
@@ -160,26 +160,6 @@ func xtoi(s string) (n int, i int, ok bool) {
 	return n, i, true
 }
 
-// xtoi2 converts the next two hex digits of s into a byte.
-// If s is longer than 2 bytes then the third byte must be e.
-// If the first two bytes of s are not hex digits or the third byte
-// does not match e, false is returned.
-func xtoi2(s string, e byte) (byte, bool) {
-	if len(s) > 2 && s[2] != e {
-		return 0, false
-	}
-	n, ei, ok := xtoi(s[:2])
-	return byte(n), ok && ei == 2
-}
-
-// Convert integer to decimal string.
-func itoa(val int) string {
-	if val < 0 {
-		return "-" + uitoa(uint(-val))
-	}
-	return uitoa(uint(val))
-}
-
 // Convert unsigned integer to decimal string.
 func uitoa(val uint) string {
 	if val == 0 { // avoid string allocation
@@ -210,17 +190,6 @@ func appendHex(dst []byte, i uint32) []byte {
 		}
 	}
 	return dst
-}
-
-// Number of occurrences of b in s.
-func count(s string, b byte) int {
-	n := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == b {
-			n++
-		}
-	}
-	return n
 }
 
 // Index of rightmost occurrence of b in s.
@@ -313,21 +282,10 @@ func foreachField(x []byte, fn func(field []byte) error) error {
 	return nil
 }
 
-// stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
-// suffix.
-func stringsHasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
-}
-
 // stringsHasSuffixFold reports whether s ends in suffix,
 // ASCII-case-insensitively.
 func stringsHasSuffixFold(s, suffix string) bool {
 	return len(s) >= len(suffix) && stringsEqualFold(s[len(s)-len(suffix):], suffix)
-}
-
-// stringsHasPrefix is strings.HasPrefix. It reports whether s begins with prefix.
-func stringsHasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
 
 // stringsEqualFold is strings.EqualFold, ASCII only. It reports whether s and t
@@ -356,27 +314,4 @@ func readFull(r io.Reader) (all []byte, err error) {
 			return nil, err
 		}
 	}
-}
-
-// goDebugString returns the value of the named GODEBUG key.
-// GODEBUG is of the form "key=val,key2=val2"
-func goDebugString(key string) string {
-	s := os.Getenv("GODEBUG")
-	for i := 0; i < len(s)-len(key)-1; i++ {
-		if i > 0 && s[i-1] != ',' {
-			continue
-		}
-		afterKey := s[i+len(key):]
-		if afterKey[0] != '=' || s[i:i+len(key)] != key {
-			continue
-		}
-		val := afterKey[1:]
-		for i, b := range val {
-			if b == ',' {
-				return val[:i]
-			}
-		}
-		return val
-	}
-	return ""
 }

@@ -12,7 +12,7 @@
 
 package net
 
-import "internal/bytealg"
+import bytealg "bytes"
 
 // IP address lengths (bytes).
 const (
@@ -710,7 +710,7 @@ func parseIPZone(s string) (IP, string) {
 // For example, ParseCIDR("192.0.2.1/24") returns the IP address
 // 192.0.2.1 and the network 192.0.2.0/24.
 func ParseCIDR(s string) (IP, *IPNet, error) {
-	i := bytealg.IndexByteString(s, '/')
+	i := IndexByteString(s, '/')
 	if i < 0 {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
