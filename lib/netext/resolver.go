@@ -37,7 +37,7 @@ import (
 	cachem "github.com/semihalev/sdns/middleware/cache"
 	sdns "github.com/semihalev/sdns/middleware/resolver"
 
-	netstd "github.com/loadimpact/k6/lib/netext/net"
+	netstd "github.com/loadimpact/k6/lib/netext/internal/net"
 )
 
 var (
