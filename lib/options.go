@@ -46,8 +46,20 @@ const DefaultScenarioName = "default"
 var DefaultSummaryTrendStats = []string{"avg", "min", "med", "max", "p(90)", "p(95)"}
 
 type DNSConfig struct {
-	TTL null.String `json:"ttl"`
+	TTL      null.String `json:"ttl"`
+	Strategy DNSStrategy `json:"strategy"`
 }
+
+//go:generate enumer -type=DNSStrategy -transform=kebab -trimprefix DNS -output dns_strategy_gen.go
+type DNSStrategy uint8
+
+const (
+	DNSFirst DNSStrategy = iota + 1
+	DNSRoundRobin
+	DNSRandom
+)
+
+const DefaultDNSStrategy = DNSFirst
 
 func (c *DNSConfig) Decode(value string) error {
 	params, err := strvals.Parse(value)
@@ -56,6 +68,16 @@ func (c *DNSConfig) Decode(value string) error {
 	}
 	if ttl, ok := params["ttl"]; ok {
 		c.TTL = null.StringFrom(fmt.Sprintf("%v", ttl))
+	}
+	if strat, ok := params["strategy"]; ok {
+		if s, err := DNSStrategyString(strat.(string)); err != nil {
+			return err
+		} else {
+			c.Strategy = s
+		}
+	}
+	if !c.Strategy.IsADNSStrategy() {
+		c.Strategy = DefaultDNSStrategy
 	}
 	return nil
 }

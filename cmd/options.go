@@ -91,7 +91,7 @@ func optionFlagSet() *pflag.FlagSet {
 	flags.StringSlice("tag", nil, "add a `tag` to be applied to all samples, as `[name]=[value]`")
 	flags.String("console-output", "", "redirects the console logging to the provided output file")
 	flags.Bool("discard-response-bodies", false, "Read but don't process or save HTTP response bodies")
-	flags.String("dns", "ttl=inf", "DNS configuration")
+	flags.String("dns", "ttl=inf,strategy=first", "DNS configuration")
 	return flags
 }
 
