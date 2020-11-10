@@ -33,104 +33,104 @@ jobs:
             test -z "$(go mod vendor && git status --porcelain)"
             go mod verify
 
-  lint:
-    runs-on: ubuntu-latest
-    env:
-        GOLANGCI_VERSION: v1.31
-        GO111MODULE: 'on'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.15.x
-      - name: Install golangci-lint
-        working-directory: /tmp
-        run: go get github.com/golangci/golangci-lint/cmd/golangci-lint@$GOLANGCI_VERSION
-      - name: Run linters
-        run: |
-          BASEREV=$(git merge-base HEAD origin/master)
-          echo "Base revision: $BASEREV"
-          golangci-lint run --out-format=tab --new-from-rev "$BASEREV" ./...
+  # lint:
+  #   runs-on: ubuntu-latest
+  #   env:
+  #       GOLANGCI_VERSION: v1.31
+  #       GO111MODULE: 'on'
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v2
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Install Go
+  #       uses: actions/setup-go@v2
+  #       with:
+  #         go-version: 1.15.x
+  #     - name: Install golangci-lint
+  #       working-directory: /tmp
+  #       run: go get github.com/golangci/golangci-lint/cmd/golangci-lint@$GOLANGCI_VERSION
+  #     - name: Run linters
+  #       run: |
+  #         BASEREV=$(git merge-base HEAD origin/master)
+  #         echo "Base revision: $BASEREV"
+  #         golangci-lint run --out-format=tab --new-from-rev "$BASEREV" ./...
 
-  test:
-    strategy:
-      matrix:
-        go-version: [1.14.x]
-        platform: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ matrix.go-version }}
-      - name: Run tests
-        run: |
-          set -x
-          go version
-          export GOMAXPROCS=2
-          args=("-p" "2" "-race")
-          # Run with less concurrency on Windows to minimize flakiness.
-          if [[ "${{ matrix.platform }}" == windows* ]]; then
-            unset args[2]
-            args[1]="1"
-            export GOMAXPROCS=1
-          fi
-          go test "${args[@]}" -timeout 800s ./...
+  # test:
+  #   strategy:
+  #     matrix:
+  #       go-version: [1.14.x]
+  #       platform: [ubuntu-latest, windows-latest]
+  #   runs-on: ${{ matrix.platform }}
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v2
+  #     - name: Install Go
+  #       uses: actions/setup-go@v2
+  #       with:
+  #         go-version: ${{ matrix.go-version }}
+  #     - name: Run tests
+  #       run: |
+  #         set -x
+  #         go version
+  #         export GOMAXPROCS=2
+  #         args=("-p" "2" "-race")
+  #         # Run with less concurrency on Windows to minimize flakiness.
+  #         if [[ "${{ matrix.platform }}" == windows* ]]; then
+  #           unset args[2]
+  #           args[1]="1"
+  #           export GOMAXPROCS=1
+  #         fi
+  #         go test "${args[@]}" -timeout 800s ./...
 
-  test-cov:
-    strategy:
-      matrix:
-        go-version: [1.15.x]
-        platform: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.platform }}
-    env:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ matrix.go-version }}
-      - name: Run tests with code coverage
-        run: |
-          go version
-          export GOMAXPROCS=2
-          args=("-p" "2" "-race")
-          # Run with less concurrency on Windows to minimize flakiness.
-          if [[ "${{ matrix.platform }}" == windows* ]]; then
-            unset args[2]
-            args[1]="1"
-            export GOMAXPROCS=1
-          fi
-          echo "mode: set" > coverage.txt
-          for pkg in $(go list ./... | grep -v vendor); do
-              list=$(go list -test -f  '{{ join .Deps  "\n"}}' $pkg | grep github.com/loadimpact/k6 | grep -v vendor || true)
-              if [ -n "$list" ]; then
-                  list=$(echo "$list" | cut -f1 -d ' ' | sort -u | paste -sd, -)
-              fi
+  # test-cov:
+  #   strategy:
+  #     matrix:
+  #       go-version: [1.15.x]
+  #       platform: [ubuntu-latest, windows-latest]
+  #   runs-on: ${{ matrix.platform }}
+  #   env:
+  #     CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v2
+  #     - name: Install Go
+  #       uses: actions/setup-go@v2
+  #       with:
+  #         go-version: ${{ matrix.go-version }}
+  #     - name: Run tests with code coverage
+  #       run: |
+  #         go version
+  #         export GOMAXPROCS=2
+  #         args=("-p" "2" "-race")
+  #         # Run with less concurrency on Windows to minimize flakiness.
+  #         if [[ "${{ matrix.platform }}" == windows* ]]; then
+  #           unset args[2]
+  #           args[1]="1"
+  #           export GOMAXPROCS=1
+  #         fi
+  #         echo "mode: set" > coverage.txt
+  #         for pkg in $(go list ./... | grep -v vendor); do
+  #             list=$(go list -test -f  '{{ join .Deps  "\n"}}' $pkg | grep github.com/loadimpact/k6 | grep -v vendor || true)
+  #             if [ -n "$list" ]; then
+  #                 list=$(echo "$list" | cut -f1 -d ' ' | sort -u | paste -sd, -)
+  #             fi
 
-              go test "${args[@]}" -timeout 800s --coverpkg="$list" -coverprofile=$(echo $pkg | tr / -).coverage $pkg
-          done
-          grep -h -v "^mode:" *.coverage >> coverage.txt
-          rm -f *.coverage
-      - name: Upload coverage to Codecov
-        run: |
-          platform="${{ matrix.platform }}"
-          bash <(curl --fail -s https://codecov.io/bash) -F "${platform%%-*}"
-      - name: Generate coverage HTML report
-        run: go tool cover -html=coverage.txt -o coverage.html
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-coverage-report-${{ matrix.platform }}
-          path: coverage.html
+  #             go test "${args[@]}" -timeout 800s --coverpkg="$list" -coverprofile=$(echo $pkg | tr / -).coverage $pkg
+  #         done
+  #         grep -h -v "^mode:" *.coverage >> coverage.txt
+  #         rm -f *.coverage
+  #     - name: Upload coverage to Codecov
+  #       run: |
+  #         platform="${{ matrix.platform }}"
+  #         bash <(curl --fail -s https://codecov.io/bash) -F "${platform%%-*}"
+  #     - name: Generate coverage HTML report
+  #       run: go tool cover -html=coverage.txt -o coverage.html
+  #     - name: Upload coverage report
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: test-coverage-report-${{ matrix.platform }}
+  #         path: coverage.html
 
   configure:
     runs-on: ubuntu-latest
@@ -150,7 +150,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: [deps, lint, test, test-cov]
+    #needs: [deps, lint, test, test-cov]
+    needs: [deps]
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout code
@@ -188,7 +189,8 @@ jobs:
 
   build-docker:
     runs-on: ubuntu-latest
-    needs: [deps, lint, test, test-cov, configure]
+    #needs: [deps, lint, test, test-cov, configure]
+    needs: [deps, configure]
     env:
       VERSION_CI: ${{ needs.configure.outputs.version_ci }}
     steps:
@@ -255,7 +257,8 @@ jobs:
 
   publish-github:
     runs-on: ubuntu-latest
-    needs: [deps, lint, test, test-cov, configure, build]
+    #needs: [deps, lint, test, test-cov, configure, build]
+    needs: [deps, configure, build]
     if: startsWith(github.ref, 'refs/tags/v')
     env:
       VERSION: ${{ needs.configure.outputs.version }}
@@ -281,17 +284,18 @@ jobs:
         run: |
           # Publishing deb
           curl --fail -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6-$VERSION-amd64.deb" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/deb/k6/${VERSION#v}/k6-${VERSION}-amd64.deb;deb_distribution=stable;deb_component=main;deb_architecture=amd64;publish=1;override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/deb/k6/${VERSION#v}/k6-${VERSION}-amd64.deb;deb_distribution=stable;deb_component=main;deb_architecture=amd64;publish=1;override=1"
           # Publishing rpm
           curl --fail -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6-$VERSION-amd64.rpm" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/rpm/k6/${VERSION#v}/k6-${VERSION}-amd64.rpm?publish=1&override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/rpm/k6/${VERSION#v}/k6-${VERSION}-amd64.rpm?publish=1&override=1"
 
   publish-windows:
     runs-on: windows-latest
     defaults:
       run:
         shell: powershell
-    needs: [deps, lint, test, test-cov, configure, build]
+    #needs: [deps, lint, test, test-cov, configure, build]
+    needs: [deps, configure, build]
     if: startsWith(github.ref, 'refs/tags/v')
     env:
       VERSION: ${{ needs.configure.outputs.version }}
@@ -337,12 +341,13 @@ jobs:
         run: |
           cd .\packaging
           $env:VERSION = $env:VERSION.TrimStart("v", " ")
-          curl.exe --fail -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T .\k6.msi "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/windows/k6/$env:VERSION/k6-v$env:VERSION-amd64.msi?publish=1&override=1"
-          curl.exe --fail -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T .\k6.portable.$env:VERSION.nupkg "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/choco/k6.portable/$env:VERSION/k6.portable.$env:VERSION.nupkg?publish=1&override=1"
+          curl.exe --fail -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T .\k6.msi "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/windows/k6/$env:VERSION/k6-v$env:VERSION-amd64.msi?publish=1&override=1"
+          curl.exe --fail -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T .\k6.portable.$env:VERSION.nupkg "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/choco/k6.portable/$env:VERSION/k6.portable.$env:VERSION.nupkg?publish=1&override=1"
 
   publish-macos:
     runs-on: macos-latest
-    needs: [deps, lint, test, test-cov, configure, build]
+    #needs: [deps, lint, test, test-cov, configure, build]
+    needs: [deps, configure, build]
     if: startsWith(github.ref, 'refs/tags/v')
     env:
       VERSION: ${{ needs.configure.outputs.version }}
@@ -350,4 +355,4 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@cd7c1eba155dc11d77aa3e3e4013836ad96a6894
       - name: Create version bump PR
-        run: brew bump-formula-pr k6 --tag="$VERSION" --revision="$GITHUB_SHA"
+        run: echo brew bump-formula-pr k6 --tag="$VERSION" --revision="$GITHUB_SHA"
