@@ -211,6 +211,7 @@ jobs:
             docker run $DOCKER_IMAGE_ID pause --help
             docker run $DOCKER_IMAGE_ID resume --help
       - name: Publish Docker CI
+        if: github.event_name != 'pull_request'
         run: |
           echo "DOCKER_IMAGE_ID=$DOCKER_IMAGE_ID"
           # Log into GHCR
