@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - test/902-enable-windows
     tags:
       - v*
   pull_request:
