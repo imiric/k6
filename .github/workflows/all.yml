@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - feat/windows-bin-metadata
     tags:
       - v*
   pull_request:
