@@ -171,6 +171,11 @@ jobs:
               && go install)
           sudo apt-get update -y
           sudo apt-get install -y fakeroot rpm
+      - name: Generate Windows binary metadata
+        run: |
+          (cd && go get github.com/josephspurrier/goversioninfo/cmd/goversioninfo)
+          go run ./packaging/gen-versioninfo.go > packaging/versioninfo.json
+          goversioninfo -icon=packaging/k6.ico packaging/versioninfo.json
       - name: Build
         run: |
           go version
