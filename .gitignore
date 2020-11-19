@@ -11,7 +11,7 @@
 
 *.DS_Store
 
-/packaging/versioninfo.json
+/versioninfo.json
 
 /vendor/**/.editorconfig
 /vendor/**/*.jpg
