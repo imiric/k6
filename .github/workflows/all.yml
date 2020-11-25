@@ -310,6 +310,11 @@ jobs:
           Expand-Archive -Path ".\dist\k6-$env:VERSION-win64.zip" -DestinationPath .\packaging\
           move .\packaging\k6-$env:VERSION-win64\k6.exe .\packaging\
           rmdir .\packaging\k6-$env:VERSION-win64\
+      - name: Sign Windows binary
+        uses: dlemstra/code-sign-action@v1
+        with:
+          certificate: ${{ secrets.CERTIFICATE }}
+          folder: packaging
       - name: Create MSI package
         run: |
           $env:VERSION = $env:VERSION -replace 'v(\d+\.\d+\.\d+).*','$1'
@@ -317,6 +322,11 @@ jobs:
           cd .\packaging
           candle.exe -arch x64 "-dVERSION=$env:VERSION" k6.wxs
           light.exe -ext WixUIExtension k6.wixobj
+      - name: Sign MSI package
+        uses: dlemstra/code-sign-action@v1
+        with:
+          certificate: ${{ secrets.CERTIFICATE }}
+          folder: packaging
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
