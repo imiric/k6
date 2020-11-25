@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - feat/1034-windows-bin-sign
     tags:
       - v*
   pull_request:
