@@ -377,10 +377,10 @@ jobs:
       - name: Upload packages to Bintray
         run: |
           curl -fsS -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6-$VERSION-amd64.deb" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/deb/k6/${VERSION#v}/k6-${VERSION}-amd64.deb;deb_distribution=stable;deb_component=main;deb_architecture=amd64;publish=1;override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/deb/k6/${VERSION#v}/k6-${VERSION}-amd64.deb;deb_distribution=stable;deb_component=main;deb_architecture=amd64;publish=1;override=1"
           curl -fsS -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6-$VERSION-amd64.rpm" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/rpm/k6/${VERSION#v}/k6-${VERSION}-amd64.rpm?publish=1&override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/rpm/k6/${VERSION#v}/k6-${VERSION}-amd64.rpm?publish=1&override=1"
           curl -fsS -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6.msi" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/windows/k6/${VERSION#v}/k6-${VERSION}-amd64.msi?publish=1&override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/windows/k6/${VERSION#v}/k6-${VERSION}-amd64.msi?publish=1&override=1"
           curl -fsS -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6.portable.${VERSION}.nupkg" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/choco/k6.portable/${VERSION#v}/k6.portable.${VERSION}.nupkg?publish=1&override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/choco/k6.portable/${VERSION#v}/k6.portable.${VERSION}.nupkg?publish=1&override=1"
