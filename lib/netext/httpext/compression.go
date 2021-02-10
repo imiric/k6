@@ -140,7 +140,7 @@ func readResponseBody(
 	respType ResponseType,
 	resp *http.Response,
 	respErr error,
-) (interface{}, error) {
+) ([]byte, error) {
 	if resp == nil || respErr != nil {
 		return nil, respErr
 	}
@@ -204,22 +204,10 @@ func readResponseBody(
 		respErr = wrapDecompressionError(err)
 	}
 
-	var result interface{}
-	// Binary or string
-	switch respType {
-	case ResponseTypeText:
-		result = buf.String()
-	case ResponseTypeBinary:
-		// Copy the data to a new slice before we return the buffer to the pool,
-		// because buf.Bytes() points to the underlying buffer byte slice.
-		// The ArrayBuffer wrapping will be done in the js/modules/k6/http
-		// package to avoid a reverse dependency, since it depends on goja.
-		binData := make([]byte, buf.Len())
-		copy(binData, buf.Bytes())
-		result = binData
-	default:
-		respErr = fmt.Errorf("unknown responseType %s", respType)
-	}
+	// Copy the data to a new slice before we return the buffer to the pool,
+	// because buf.Bytes() points to the underlying buffer byte slice.
+	binData := make([]byte, buf.Len())
+	copy(binData, buf.Bytes())
 
-	return result, respErr
+	return binData, respErr
 }

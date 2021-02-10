@@ -113,8 +113,7 @@ func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args 
 	if err != nil {
 		return nil, err
 	}
-	processResponse(ctx, resp, req.ResponseType)
-	return responseFromHttpext(resp), nil
+	return newResponse(ctx, resp, req.ResponseType), nil
 }
 
 //TODO break this function up
@@ -378,7 +377,7 @@ func (h *HTTP) prepareBatchArray(
 			ParsedHTTPRequest: parsedReq,
 			Response:          response,
 		}
-		results[i] = &Response{response}
+		results[i] = newResponse(ctx, response, parsedReq.ResponseType)
 	}
 
 	return batchReqs, results, nil
@@ -402,7 +401,7 @@ func (h *HTTP) prepareBatchObject(
 			ParsedHTTPRequest: parsedReq,
 			Response:          response,
 		}
-		results[key] = &Response{response}
+		results[key] = newResponse(ctx, response, parsedReq.ResponseType)
 		i++
 	}
 
@@ -440,7 +439,6 @@ func (h *HTTP) Batch(ctx context.Context, reqsV goja.Value) (goja.Value, error) 
 	errs := httpext.MakeBatchRequests(
 		ctx, batchReqs, reqCount,
 		int(state.Options.Batch.Int64), int(state.Options.BatchPerHost.Int64),
-		processResponse,
 	)
 
 	for i := 0; i < reqCount; i++ {

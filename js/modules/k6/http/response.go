@@ -37,20 +37,25 @@ import (
 // Response is a representation of an HTTP response to be returned to the goja VM
 type Response struct {
 	*httpext.Response `js:"-"`
+	*goja.Object      `js:"-"`
 }
 
-// processResponse stores the body as an ArrayBuffer if indicated by
-// respType. This is done here instead of in httpext.readResponseBody to avoid
-// a reverse dependency on js/common or goja.
-func processResponse(ctx context.Context, resp *httpext.Response, respType httpext.ResponseType) {
-	if respType == httpext.ResponseTypeBinary {
-		rt := common.GetRuntime(ctx)
-		resp.Body = rt.NewArrayBuffer(resp.Body.([]byte))
-	}
-}
-
-func responseFromHttpext(resp *httpext.Response) *Response {
-	res := Response{resp}
+func newResponse(ctx context.Context, resp *httpext.Response, respType httpext.ResponseType) *Response {
+	rt := common.GetRuntime(ctx)
+	res := Response{resp, rt.NewObject()}
+	get := rt.ToValue(func() interface{} {
+		switch respType {
+		case httpext.ResponseTypeBinary:
+			ab := rt.NewArrayBuffer(resp.Body)
+			return &ab
+		case httpext.ResponseTypeText:
+			return string(resp.Body)
+		default:
+			common.Throw(rt, errors.New("invalid response type"))
+		}
+		return nil
+	})
+	res.DefineAccessorProperty("body", get, nil, goja.FLAG_FALSE, goja.FLAG_TRUE)
 	return &res
 }
 
@@ -68,17 +73,7 @@ func (res *Response) JSON(selector ...string) goja.Value {
 
 // HTML returns the body as an html.Selection
 func (res *Response) HTML(selector ...string) html.Selection {
-	var body string
-	switch b := res.Body.(type) {
-	case []byte:
-		body = string(b)
-	case string:
-		body = b
-	default:
-		common.Throw(common.GetRuntime(res.GetCtx()), errors.New("invalid response type"))
-	}
-
-	sel, err := html.HTML{}.ParseHTML(res.GetCtx(), body)
+	sel, err := html.HTML{}.ParseHTML(res.GetCtx(), string(res.Body))
 	if err != nil {
 		common.Throw(common.GetRuntime(res.GetCtx()), err)
 	}

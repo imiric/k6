@@ -26,8 +26,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/dop251/goja"
-	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 
 	"github.com/loadimpact/k6/lib/netext"
@@ -101,7 +99,7 @@ type Response struct {
 	Proto          string                   `json:"proto"`
 	Headers        map[string]string        `json:"headers"`
 	Cookies        map[string][]*HTTPCookie `json:"cookies"`
-	Body           interface{}              `json:"body"`
+	Body           []byte                   `json:"body"`
 	Timings        ResponseTimings          `json:"timings"`
 	TLSVersion     string                   `json:"tls_version"`
 	TLSCipherSuite string                   `json:"tls_cipher_suite"`
@@ -131,27 +129,15 @@ func (res *Response) JSON(selector ...string) (interface{}, error) {
 	hasSelector := len(selector) > 0
 	if res.cachedJSON == nil || hasSelector {
 		var v interface{}
-		var body []byte
-		switch b := res.Body.(type) {
-		case []byte:
-			body = b
-		case string:
-			body = []byte(b)
-		case goja.ArrayBuffer:
-			body = b.Bytes()
-		default:
-			return nil, errors.New("invalid response type")
-		}
-
 		if hasSelector {
 			if !res.validatedJSON {
-				if !gjson.ValidBytes(body) {
+				if !gjson.ValidBytes(res.Body) {
 					return nil, nil
 				}
 				res.validatedJSON = true
 			}
 
-			result := gjson.GetBytes(body, selector[0])
+			result := gjson.GetBytes(res.Body, selector[0])
 
 			if !result.Exists() {
 				return nil, nil
@@ -159,9 +145,9 @@ func (res *Response) JSON(selector ...string) (interface{}, error) {
 			return result.Value(), nil
 		}
 
-		if err := json.Unmarshal(body, &v); err != nil {
+		if err := json.Unmarshal(res.Body, &v); err != nil {
 			if syntaxError, ok := err.(*json.SyntaxError); ok {
-				err = checkErrorInJSON(body, int(syntaxError.Offset), err)
+				err = checkErrorInJSON(res.Body, int(syntaxError.Offset), err)
 			}
 			return nil, err
 		}
