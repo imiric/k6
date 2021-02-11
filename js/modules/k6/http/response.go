@@ -37,26 +37,34 @@ import (
 // Response is a representation of an HTTP response to be returned to the goja VM
 type Response struct {
 	*httpext.Response `js:"-"`
-	*goja.Object      `js:"-"`
 }
 
-func newResponse(ctx context.Context, resp *httpext.Response, respType httpext.ResponseType) *Response {
+func newResponse(ctx context.Context, resp *httpext.Response, respType httpext.ResponseType) *goja.Object {
 	rt := common.GetRuntime(ctx)
-	res := Response{resp, rt.NewObject()}
-	get := rt.ToValue(func() interface{} {
-		switch respType {
-		case httpext.ResponseTypeBinary:
-			ab := rt.NewArrayBuffer(resp.Body)
-			return &ab
-		case httpext.ResponseTypeText:
-			return string(resp.Body)
-		default:
-			common.Throw(rt, errors.New("invalid response type"))
-		}
-		return nil
-	})
-	res.DefineAccessorProperty("body", get, nil, goja.FLAG_FALSE, goja.FLAG_TRUE)
-	return &res
+
+	var body interface{}
+	switch respType {
+	case httpext.ResponseTypeBinary:
+		ab := rt.NewArrayBuffer(resp.Body)
+		body = &ab
+	case httpext.ResponseTypeText:
+		body = string(resp.Body)
+	default:
+		common.Throw(rt, errors.New("invalid response type"))
+	}
+
+	res := Response{resp}
+	resObj := rt.ToValue(res).ToObject(rt)
+	obj := rt.NewObject()
+	if err := obj.DefineDataProperty("body", rt.ToValue(body),
+		goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE); err != nil {
+		common.Throw(rt, err)
+	}
+	if err := obj.SetPrototype(resObj); err != nil {
+		common.Throw(rt, err)
+	}
+
+	return obj
 }
 
 // JSON parses the body of a response as json and returns it to the goja VM
@@ -86,7 +94,7 @@ func (res *Response) HTML(selector ...string) html.Selection {
 
 // SubmitForm parses the body as an html looking for a from and then submitting it
 // TODO: document the actual arguments that can be provided
-func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) {
+func (res *Response) SubmitForm(args ...goja.Value) (*goja.Object, error) {
 	rt := common.GetRuntime(res.GetCtx())
 
 	formSelector := "form"
@@ -172,7 +180,7 @@ func (res *Response) SubmitForm(args ...goja.Value) (*Response, error) {
 
 // ClickLink parses the body as an html, looks for a link and than makes a request as if the link was
 // clicked
-func (res *Response) ClickLink(args ...goja.Value) (*Response, error) {
+func (res *Response) ClickLink(args ...goja.Value) (*goja.Object, error) {
 	rt := common.GetRuntime(res.GetCtx())
 
 	selector := "a[href]"

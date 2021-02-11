@@ -48,47 +48,47 @@ var ErrHTTPForbiddenInInitContext = common.NewInitContextError("Making http requ
 var ErrBatchForbiddenInInitContext = common.NewInitContextError("Using batch in the init context is not supported")
 
 // Get makes an HTTP GET request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) {
+func (h *HTTP) Get(ctx context.Context, url goja.Value, args ...goja.Value) (*goja.Object, error) {
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value{goja.Undefined()}, args...)
 	return h.Request(ctx, HTTP_METHOD_GET, url, args...)
 }
 
 // Head makes an HTTP HEAD request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) {
+func (h *HTTP) Head(ctx context.Context, url goja.Value, args ...goja.Value) (*goja.Object, error) {
 	// The body argument is always undefined for GETs and HEADs.
 	args = append([]goja.Value{goja.Undefined()}, args...)
 	return h.Request(ctx, HTTP_METHOD_HEAD, url, args...)
 }
 
 // Post makes an HTTP POST request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) {
+func (h *HTTP) Post(ctx context.Context, url goja.Value, args ...goja.Value) (*goja.Object, error) {
 	return h.Request(ctx, HTTP_METHOD_POST, url, args...)
 }
 
 // Put makes an HTTP PUT request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) {
+func (h *HTTP) Put(ctx context.Context, url goja.Value, args ...goja.Value) (*goja.Object, error) {
 	return h.Request(ctx, HTTP_METHOD_PUT, url, args...)
 }
 
 // Patch makes a patch request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) {
+func (h *HTTP) Patch(ctx context.Context, url goja.Value, args ...goja.Value) (*goja.Object, error) {
 	return h.Request(ctx, HTTP_METHOD_PATCH, url, args...)
 }
 
 // Del makes an HTTP DELETE and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) {
+func (h *HTTP) Del(ctx context.Context, url goja.Value, args ...goja.Value) (*goja.Object, error) {
 	return h.Request(ctx, HTTP_METHOD_DELETE, url, args...)
 }
 
 // Options makes an HTTP OPTIONS request and returns a corresponding response by taking goja.Values as arguments
-func (h *HTTP) Options(ctx context.Context, url goja.Value, args ...goja.Value) (*Response, error) {
+func (h *HTTP) Options(ctx context.Context, url goja.Value, args ...goja.Value) (*goja.Object, error) {
 	return h.Request(ctx, HTTP_METHOD_OPTIONS, url, args...)
 }
 
 // Request makes an http request of the provided `method` and returns a corresponding response by
 // taking goja.Values as arguments
-func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*Response, error) {
+func (h *HTTP) Request(ctx context.Context, method string, url goja.Value, args ...goja.Value) (*goja.Object, error) {
 	u, err := ToURL(url)
 	if err != nil {
 		return nil, err
@@ -362,10 +362,10 @@ func (h *HTTP) parseRequest(
 
 func (h *HTTP) prepareBatchArray(
 	ctx context.Context, requests []interface{},
-) ([]httpext.BatchParsedHTTPRequest, []*Response, error) {
+) ([]httpext.BatchParsedHTTPRequest, []*goja.Object, error) {
 	reqCount := len(requests)
 	batchReqs := make([]httpext.BatchParsedHTTPRequest, reqCount)
-	results := make([]*Response, reqCount)
+	results := make([]*goja.Object, reqCount)
 
 	for i, req := range requests {
 		parsedReq, err := h.parseBatchRequest(ctx, i, req)
@@ -385,10 +385,10 @@ func (h *HTTP) prepareBatchArray(
 
 func (h *HTTP) prepareBatchObject(
 	ctx context.Context, requests map[string]interface{},
-) ([]httpext.BatchParsedHTTPRequest, map[string]*Response, error) {
+) ([]httpext.BatchParsedHTTPRequest, map[string]*goja.Object, error) {
 	reqCount := len(requests)
 	batchReqs := make([]httpext.BatchParsedHTTPRequest, reqCount)
-	results := make(map[string]*Response, reqCount)
+	results := make(map[string]*goja.Object, reqCount)
 
 	i := 0
 	for key, req := range requests {
