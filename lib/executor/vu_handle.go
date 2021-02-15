@@ -88,11 +88,12 @@ short names for input:
 // - it's not required but preferable, if where possible to not reactivate VUs and to reuse context
 // as this speed ups the execution
 type vuHandle struct {
-	mutex     *sync.Mutex
-	parentCtx context.Context
-	getVU     func() (lib.InitializedVU, error)
-	returnVU  func(lib.InitializedVU)
-	config    *BaseConfig
+	mutex         *sync.Mutex
+	parentCtx     context.Context
+	getVU         func() (lib.InitializedVU, error)
+	returnVU      func(lib.InitializedVU)
+	config        *BaseConfig
+	scenarioState *lib.ScenarioState
 
 	initVU       lib.InitializedVU
 	activeVU     lib.ActiveVU
