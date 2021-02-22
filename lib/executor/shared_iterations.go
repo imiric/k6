@@ -243,7 +243,7 @@ func (si SharedIterations) Run(parentCtx context.Context, out chan<- stats.Sampl
 		func(u lib.InitializedVU) {
 			si.executionState.ReturnVU(u, true)
 			activeVUs.Done()
-		})
+		}, si.GetNextLocalVUID)
 	handleVU := func(initVU lib.InitializedVU) {
 		ctx, cancel := context.WithCancel(maxDurationCtx)
 		defer cancel()

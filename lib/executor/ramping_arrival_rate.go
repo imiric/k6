@@ -371,7 +371,7 @@ func (varr RampingArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 		func(u lib.InitializedVU) {
 			varr.executionState.ReturnVU(u, true)
 			activeVUsWg.Done()
-		})
+		}, varr.GetNextLocalVUID)
 	activateVU := func(initVU lib.InitializedVU) lib.ActiveVU {
 		activeVUsWg.Add(1)
 		activeVU := initVU.Activate(activationParams)

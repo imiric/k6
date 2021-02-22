@@ -276,7 +276,7 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 		func(u lib.InitializedVU) {
 			car.executionState.ReturnVU(u, true)
 			activeVUsWg.Done()
-		})
+		}, car.GetNextLocalVUID)
 	activateVU := func(initVU lib.InitializedVU) lib.ActiveVU {
 		activeVUsWg.Add(1)
 		activeVU := initVU.Activate(activationParams)

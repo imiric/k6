@@ -211,7 +211,7 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- stats.Sampl
 		func(u lib.InitializedVU) {
 			pvi.executionState.ReturnVU(u, true)
 			activeVUs.Done()
-		})
+		}, pvi.GetNextLocalVUID)
 
 	handleVU := func(initVU lib.InitializedVU) {
 		defer handleVUsWG.Done()

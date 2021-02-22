@@ -187,7 +187,7 @@ func (clv ConstantVUs) Run(parentCtx context.Context, out chan<- stats.SampleCon
 		func(u lib.InitializedVU) {
 			clv.executionState.ReturnVU(u, true)
 			activeVUs.Done()
-		})
+		}, clv.GetNextLocalVUID)
 	handleVU := func(initVU lib.InitializedVU) {
 		ctx, cancel := context.WithCancel(maxDurationCtx)
 		defer cancel()
