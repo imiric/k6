@@ -198,13 +198,14 @@ func (pvi PerVUIterations) Run(parentCtx context.Context, out chan<- stats.Sampl
 	defer activeVUs.Wait()
 
 	regDurationDone := regDurationCtx.Done()
-	runIteration := getIterationRunner(pvi.executionState, pvi.logger)
+	runIteration := getIterationRunner(pvi.executionState, pvi.IncrScenarioIter, pvi.logger)
 
 	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState{
-		Name:       pvi.config.Name,
-		Executor:   pvi.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
+		Name:            pvi.config.Name,
+		Executor:        pvi.config.Type,
+		StartTime:       startTime,
+		ProgressFn:      progressFn,
+		GetScenarioIter: pvi.GetScenarioIter,
 	})
 
 	activationParams := getVUActivationParams(maxDurationCtx, pvi.config.BaseConfig,

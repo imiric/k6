@@ -530,7 +530,7 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 		currentlyPaused: false,
 		activeVUsCount:  new(int64),
 		maxVUs:          new(int64),
-		runIteration:    getIterationRunner(mex.executionState, mex.logger),
+		runIteration:    getIterationRunner(mex.executionState, mex.IncrScenarioIter, mex.logger),
 	}
 	*runState.maxVUs = startMaxVUs
 	if err = runState.retrieveStartMaxVUs(); err != nil {
@@ -538,10 +538,11 @@ func (mex *ExternallyControlled) Run(parentCtx context.Context, out chan<- stats
 	}
 
 	ctx = lib.WithScenarioState(ctx, &lib.ScenarioState{
-		Name:       mex.config.Name,
-		Executor:   mex.config.Type,
-		StartTime:  time.Now(),
-		ProgressFn: runState.progressFn,
+		Name:            mex.config.Name,
+		Executor:        mex.config.Type,
+		StartTime:       time.Now(),
+		ProgressFn:      runState.progressFn,
+		GetScenarioIter: mex.GetScenarioIter,
 	})
 
 	mex.progress.Modify(pb.WithProgress(runState.progressFn)) // Keep track of the progress

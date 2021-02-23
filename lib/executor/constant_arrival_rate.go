@@ -266,10 +266,11 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 	car.progress.Modify(pb.WithProgress(progressFn))
 	go trackProgress(parentCtx, maxDurationCtx, regDurationCtx, &car, progressFn)
 	maxDurationCtx = lib.WithScenarioState(maxDurationCtx, &lib.ScenarioState{
-		Name:       car.config.Name,
-		Executor:   car.config.Type,
-		StartTime:  startTime,
-		ProgressFn: progressFn,
+		Name:            car.config.Name,
+		Executor:        car.config.Type,
+		StartTime:       startTime,
+		ProgressFn:      progressFn,
+		GetScenarioIter: car.GetScenarioIter,
 	})
 
 	activationParams := getVUActivationParams(maxDurationCtx, car.config.BaseConfig,
@@ -319,7 +320,7 @@ func (car ConstantArrivalRate) Run(parentCtx context.Context, out chan<- stats.S
 		activeVUs <- activateVU(initVU)
 	}
 
-	runIterationBasic := getIterationRunner(car.executionState, car.logger)
+	runIterationBasic := getIterationRunner(car.executionState, car.IncrScenarioIter, car.logger)
 	runIteration := func(vu lib.ActiveVU) {
 		runIterationBasic(maxDurationCtx, vu)
 		activeVUs <- vu
