@@ -373,7 +373,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     container:
       image: debian:buster
-      options: '--cap-add SYS_ADMIN --device /dev/fuse'
+      options: '--cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined'
       # volumes: /pkg:/pkg
       env:
         VERSION: ${{ needs.configure.outputs.version }}
@@ -404,14 +404,27 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update -y
-          apt-get install -y s3fs dpkg-dev createrepo
+          apt-get install -y curl s3fs dpkg-dev createrepo python3
       - name: Mount S3 bucket
         run: |
-          echo "VERSION=$VERSION"
-          ls -al dist
           mkdir /mnt/dl.k6.io
-          s3fs test-dl-k6-io /mnt/dl.k6.io
-          ls -al /mnt/dl.k6.io
-      # - name: Upload packages to S3
-      #   run: |
-      #     ls -al /pkg
+          s3fs -o uid=$(id -u),gid=$(id -g) test-dl-k6-io /mnt/dl.k6.io
+      - name: Update package repositories
+        # The sed after dpkg-scanpackages is to remove the leading ./ from the
+        # filename, otherwise apt-get fails to install the package.
+        # See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=757039
+        run: |
+          cd /mnt/dl.k6.io
+          mkdir -p deb rpm msi
+          cp $GITHUB_WORKSPACE/dist/*.deb deb/
+          cp $GITHUB_WORKSPACE/dist/*.rpm rpm/
+          cp $GITHUB_WORKSPACE/dist/*.msi msi/
+          (cd deb && dpkg-scanpackages -m . | sed 's,^Filename: \./,Filename: ,' | gzip -c > Packages.gz)
+          (cd rpm && createrepo .)
+      - name: Generate index.html
+        run: |
+          curl -O https://gist.githubusercontent.com/glowinthedark/625eb4caeca12c5aa52778a3b4b0adb4/raw/004291df9f637d2e6fe830a27c6fcb9d81eca685/generate_directory_index_caddystyle.py
+          cd /mnt/dl.k6.io
+          python3 ~/generate_directory_index_caddystyle.py -r
+      - name: Unmount S3 bucket
+        run: umount /mnt/dl.k6.io
