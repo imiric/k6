@@ -425,6 +425,6 @@ jobs:
         run: |
           curl -O https://gist.githubusercontent.com/glowinthedark/625eb4caeca12c5aa52778a3b4b0adb4/raw/004291df9f637d2e6fe830a27c6fcb9d81eca685/generate_directory_index_caddystyle.py
           cd /mnt/dl.k6.io
-          python3 ~/generate_directory_index_caddystyle.py -r
+          python3 $GITHUB_WORKSPACE/generate_directory_index_caddystyle.py -r
       - name: Unmount S3 bucket
         run: umount /mnt/dl.k6.io
