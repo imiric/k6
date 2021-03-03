@@ -408,7 +408,7 @@ jobs:
       - name: Mount S3 bucket
         run: |
           mkdir /mnt/dl.k6.io
-          s3fs -o uid=$(id -u),gid=$(id -g) test-dl-k6-io /mnt/dl.k6.io
+          s3fs -o uid=$(id -u),gid=$(id -g),norenameapi,enable_noobj_cache,enable_content_md5 test-dl-k6-io /mnt/dl.k6.io
       - name: Update package repositories
         # The sed after dpkg-scanpackages is to remove the leading ./ from the
         # filename, otherwise apt-get fails to install the package.
