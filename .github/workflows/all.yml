@@ -378,8 +378,6 @@ jobs:
       env:
         VERSION: ${{ needs.configure.outputs.version }}
         DEBIAN_FRONTEND: noninteractive
-        AWSACCESSKEYID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWSSECRETACCESSKEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Download binaries
         uses: actions/download-artifact@v2
@@ -404,11 +402,20 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update -y
-          apt-get install -y curl s3fs dpkg-dev createrepo python3
+          apt-get install -y curl rclone dpkg-dev createrepo python3
       - name: Mount S3 bucket
         run: |
+          cat > rclone.conf <<EOF
+          [k6-s3]
+          type = s3
+          provider = AWS
+          region = eu-north-1
+          env_auth = false
+          access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          EOF
           mkdir /mnt/dl.k6.io
-          s3fs -o uid=$(id -u),gid=$(id -g),norenameapi,enable_noobj_cache,enable_content_md5 test-dl-k6-io /mnt/dl.k6.io
+          rclone --config=rclone.conf mount --daemon k6-s3:test-dl-k6-io /mnt/dl.k6.io
       - name: Update package repositories
         # The sed after dpkg-scanpackages is to remove the leading ./ from the
         # filename, otherwise apt-get fails to install the package.
@@ -427,4 +434,6 @@ jobs:
           cd /mnt/dl.k6.io
           python3 $GITHUB_WORKSPACE/generate_directory_index_caddystyle.py -r
       - name: Unmount S3 bucket
-        run: umount /mnt/dl.k6.io
+        run: |
+          rm rclone.conf
+          umount /mnt/dl.k6.io
