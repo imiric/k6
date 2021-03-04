@@ -401,7 +401,11 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update -y
-          apt-get install -y curl rclone dpkg-dev createrepo python3
+          apt-get install -y curl dpkg-dev createrepo python3 unzip
+          # Debian uses an old version, so get the latest stable.
+          curl -fsSLO https://downloads.rclone.org/v1.54.0/rclone-v1.54.0-linux-amd64.zip
+          unzip rclone-*.zip
+          cp rclone-*/rclone /usr/bin/
       - name: Update package repositories
         run: |
           # Create rclone config and mount the S3 bucket
