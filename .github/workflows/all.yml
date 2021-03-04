@@ -403,8 +403,9 @@ jobs:
         run: |
           apt-get update -y
           apt-get install -y curl rclone dpkg-dev createrepo python3
-      - name: Mount S3 bucket
+      - name: Update package repositories
         run: |
+          # Create rclone config and mount the S3 bucket
           cat > rclone.conf <<EOF
           [k6-s3]
           type = s3
@@ -416,24 +417,24 @@ jobs:
           EOF
           mkdir /mnt/dl.k6.io
           rclone --config=rclone.conf mount --daemon k6-s3:test-dl-k6-io /mnt/dl.k6.io
-      - name: Update package repositories
-        # The sed after dpkg-scanpackages is to remove the leading ./ from the
-        # filename, otherwise apt-get fails to install the package.
-        # See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=757039
-        run: |
+
+          # Copy new packages and update the repos
           cd /mnt/dl.k6.io
           mkdir -p deb rpm msi
           cp $GITHUB_WORKSPACE/dist/*.deb deb/
           cp $GITHUB_WORKSPACE/dist/*.rpm rpm/
           cp $GITHUB_WORKSPACE/dist/*.msi msi/
+          # The sed is to remove the leading ./ from the filename, otherwise
+          # apt-get fails to install the package.
+          # See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=757039
           (cd deb && dpkg-scanpackages -m . | sed 's,^Filename: \./,Filename: ,' | gzip -c > Packages.gz)
           (cd rpm && createrepo .)
-      - name: Generate index.html
-        run: |
-          curl -fsSLO https://gist.githubusercontent.com/glowinthedark/625eb4caeca12c5aa52778a3b4b0adb4/raw/004291df9f637d2e6fe830a27c6fcb9d81eca685/generate_directory_index_caddystyle.py
-          cd /mnt/dl.k6.io
+
+          # Generate index.html
+          curl -fsSL -o $GITHUB_WORKSPACE/generate_directory_index_caddystyle.py \
+            https://gist.githubusercontent.com/glowinthedark/625eb4caeca12c5aa52778a3b4b0adb4/raw/004291df9f637d2e6fe830a27c6fcb9d81eca685/generate_directory_index_caddystyle.py
           python3 $GITHUB_WORKSPACE/generate_directory_index_caddystyle.py -r
-      - name: Unmount S3 bucket
-        run: |
-          rm rclone.conf
+
+          cd -
           umount /mnt/dl.k6.io
+          rm rclone.conf
