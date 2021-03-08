@@ -368,15 +368,21 @@ jobs:
   #         hub release create "${assets[@]}" -m "$VERSION" -m "$(cat ./release\ notes/${VERSION}.md)" "$VERSION"
 
   publish-packages:
-    runs-on: ubuntu-latest
+    # The createrepo package is missing in 20.04, see [1], so we use 18.04 here
+    # which has it, and to avoid building it ourselves from PyPI (createrepo_c).
+    # It's also available in Debian, and we could run all steps in a
+    # debian:buster container, but since we're dealing with FUSE mounts it's
+    # easier to handle this on the host.
+    # [1]: https://answers.launchpad.net/createrepo/+question/690448
+    runs-on: ubuntu-18.04
     # needs: [configure, build, package-windows]
     # if: startsWith(github.ref, 'refs/tags/v')
-    container:
-      image: debian:buster
-      options: '--cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined'
-      env:
-        # VERSION: ${{ needs.configure.outputs.version }}
-        DEBIAN_FRONTEND: noninteractive
+    # container:
+    #   image: debian:buster
+    #   options: '--cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined'
+    #   env:
+    #     # VERSION: ${{ needs.configure.outputs.version }}
+    #     DEBIAN_FRONTEND: noninteractive
     steps:
       # - name: Download binaries
       #   uses: actions/download-artifact@v2
@@ -400,45 +406,28 @@ jobs:
       #       "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/choco/k6.portable/${VERSION#v}/k6.portable.${VERSION}.nupkg?publish=1&override=1"
       - name: Install dependencies
         run: |
-          apt-get update -y
-          apt-get install -y curl dpkg-dev createrepo python3 s3fs unzip
-          # Debian uses an old version, so get the latest stable.
+          sudo apt-get update -y
+          sudo apt-get install -y curl dpkg-dev createrepo fuse python3 unzip
+          # Ubuntu uses an old version, so get the latest stable.
           curl -fsSLO https://downloads.rclone.org/v1.54.0/rclone-v1.54.0-linux-amd64.zip
           unzip rclone-*.zip
-          cp rclone-*/rclone /usr/bin/
+          sudo cp rclone-*/rclone /usr/bin/
       - name: Update package repositories
         run: |
-          # Create rclone config and mount the S3 bucket
-          cat > rclone.conf <<EOF
-          [k6-s3]
-          type = s3
-          provider = AWS
-          region = eu-north-1
-          env_auth = false
-          access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          EOF
-          mkdir /mnt/dl.k6.io
-          rclone --config=rclone.conf -vv mount --allow-root --daemon k6-s3:test-dl-k6-io /mnt/dl.k6.io
+          sudo modprobe fuse
+          sudo chmod 666 /dev/fuse
+          sudo mkdir /mnt/dl.k6.io
+          sudo chown "$(id -u):$(id -g)" /mnt/dl.k6.io
+          # Mount the S3 bucket in the background. Not using --daemon
+          # since it fails to daemonize properly, see
+          # https://github.com/rclone/rclone/issues/2618 .
+          rclone -vv --log-file=/tmp/rclone.log --s3-provider=AWS --s3-region=eu-north-1 \
+            --s3-access-key-id='${{ secrets.AWS_ACCESS_KEY_ID }}' \
+            --s3-secret-access-key='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
+            mount :s3:test-dl-k6-io /mnt/dl.k6.io &
           find /mnt/dl.k6.io -ls
+          sudo mount | grep fuse
 
-          # # Copy new packages and update the repos
-          # cd /mnt/dl.k6.io
-          # mkdir -p deb rpm msi
-          # cp $GITHUB_WORKSPACE/dist/*.deb deb/
-          # cp $GITHUB_WORKSPACE/dist/*.rpm rpm/
-          # cp $GITHUB_WORKSPACE/dist/*.msi msi/
-          # # The sed is to remove the leading ./ from the filename, otherwise
-          # # apt-get fails to install the package.
-          # # See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=757039
-          # (cd deb && dpkg-scanpackages -m . | sed 's,^Filename: \./,Filename: ,' | gzip -c > Packages.gz)
-          # (cd rpm && createrepo .)
-
-          # # Generate index.html
-          # curl -fsSL -o $GITHUB_WORKSPACE/generate_directory_index_caddystyle.py \
-          #   https://gist.githubusercontent.com/glowinthedark/625eb4caeca12c5aa52778a3b4b0adb4/raw/004291df9f637d2e6fe830a27c6fcb9d81eca685/generate_directory_index_caddystyle.py
-          # python3 $GITHUB_WORKSPACE/generate_directory_index_caddystyle.py -r
-
-          # cd -
-          umount /mnt/dl.k6.io
-          rm rclone.conf
+          # Unmount bucket
+          kill $!
+          cat /tmp/rclone.log
