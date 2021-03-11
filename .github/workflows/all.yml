@@ -404,26 +404,16 @@ jobs:
         run: |
           apt-get update -y
           apt-get install -y curl s3fs dpkg-dev createrepo python3
-      - name: Mount S3 bucket
+      - name: Create package repositories
         run: |
-          mkdir /mnt/dl.k6.io
-          s3fs -o uid=$(id -u),gid=$(id -g),norenameapi,enable_noobj_cache,enable_content_md5 test-dl-k6-io /mnt/dl.k6.io
-      - name: Update package repositories
-        # The sed after dpkg-scanpackages is to remove the leading ./ from the
-        # filename, otherwise apt-get fails to install the package.
-        # See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=757039
-        run: |
-          cd /mnt/dl.k6.io
-          mkdir -p deb rpm msi
-          cp $GITHUB_WORKSPACE/dist/*.deb deb/
-          cp $GITHUB_WORKSPACE/dist/*.rpm rpm/
-          cp $GITHUB_WORKSPACE/dist/*.msi msi/
-          (cd deb && dpkg-scanpackages -m . | sed 's,^Filename: \./,Filename: ,' | gzip -c > Packages.gz)
-          (cd rpm && createrepo .)
+          ./packaging/create-deb-repo.sh ./dist ./dl.k6.io/deb
+          ./packaging/create-rpm-repo.sh ./dist ./dl.k6.io/rpm
+          mkdir -p ./dl.k6.io/msi && cp dist/k6*.msi ./dl.k6.io/msi/
       - name: Generate index.html
         run: |
-          curl -fsSLO https://gist.githubusercontent.com/glowinthedark/625eb4caeca12c5aa52778a3b4b0adb4/raw/004291df9f637d2e6fe830a27c6fcb9d81eca685/generate_directory_index_caddystyle.py
-          cd /mnt/dl.k6.io
-          python3 $GITHUB_WORKSPACE/generate_directory_index_caddystyle.py -r
-      - name: Unmount S3 bucket
-        run: umount /mnt/dl.k6.io
+          curl -fsSL -o /tmp/generate_index.py \
+            https://gist.githubusercontent.com/glowinthedark/625eb4caeca12c5aa52778a3b4b0adb4/raw/004291df9f637d2e6fe830a27c6fcb9d81eca685/generate_directory_index_caddystyle.py
+          cd ./dl.k6.io
+          python3 /tmp/generate_index.py -r
+      - name: Sync to S3 bucket
+        run: s3cmd sync ./dl.k6.io/ "s3://test-dl-k6-io/"
