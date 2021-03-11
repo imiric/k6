@@ -327,7 +327,7 @@ jobs:
         uses: Homebrew/actions/setup-homebrew@2eb78889a50ba021d744837934f1af2d8c4458ec
       - name: Create version bump PR
         run: |
-          brew bump-formula-pr k6 \
+          echo brew bump-formula-pr k6 \
             --url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/archive/${VERSION}.tar.gz" \
             --sha256="$(shasum -a 256 ${VERSION}.tar.gz | cut -d' ' -f1)"
 
@@ -385,10 +385,10 @@ jobs:
       - name: Upload packages to Bintray
         run: |
           curl -fsS -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6-$VERSION-amd64.deb" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/deb/k6/${VERSION#v}/k6-${VERSION}-amd64.deb;deb_distribution=stable;deb_component=main;deb_architecture=amd64;publish=1;override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/deb/k6/${VERSION#v}/k6-${VERSION}-amd64.deb;deb_distribution=stable;deb_component=main;deb_architecture=amd64;publish=1;override=1"
           curl -fsS -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6-$VERSION-amd64.rpm" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/rpm/k6/${VERSION#v}/k6-${VERSION}-amd64.rpm?publish=1&override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/rpm/k6/${VERSION#v}/k6-${VERSION}-amd64.rpm?publish=1&override=1"
           curl -fsS -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6-$VERSION-win64.msi" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/windows/k6/${VERSION#v}/k6-${VERSION}-amd64.msi?publish=1&override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/windows/k6/${VERSION#v}/k6-${VERSION}-amd64.msi?publish=1&override=1"
           curl -fsS -H "X-GPG-PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}" -T "dist/k6.portable.${VERSION#v}.nupkg" \
-            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/loadimpact/choco/k6.portable/${VERSION#v}/k6.portable.${VERSION}.nupkg?publish=1&override=1"
+            "https://${{ secrets.BINTRAY_USER }}:${{ secrets.BINTRAY_KEY }}@api.bintray.com/content/imiric2/choco/k6.portable/${VERSION#v}/k6.portable.${VERSION}.nupkg?publish=1&override=1"
