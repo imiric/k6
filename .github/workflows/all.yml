@@ -415,9 +415,9 @@ jobs:
         run: |
           mkdir dist && cd $_
           curl -fsSL --remote-name-all \
-            'https://dl.bintray.com/loadimpact/deb/k6-v0.28.0-amd64.deb' \
-            'https://dl.bintray.com/loadimpact/rpm/k6-v0.28.0-amd64.rpm' \
-            'https://dl.bintray.com/loadimpact/windows/k6-v0.28.0-amd64.msi'
+            'https://dl.bintray.com/loadimpact/deb/k6-v0.29.0-amd64.deb' \
+            'https://dl.bintray.com/loadimpact/rpm/k6-v0.29.0-amd64.rpm' \
+            'https://dl.bintray.com/loadimpact/windows/k6-v0.29.0-amd64.msi'
       - name: Create package repositories
         run: |
           # TODO: Add choco
