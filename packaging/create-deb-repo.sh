@@ -33,7 +33,7 @@ for arch in $architectures; do
   # be present because of how createrepo works.
   # TODO: Also check their hashes? Or just sync them with s3cmd which does MD5 checks...
   pkgs=$(s3cmd ls "s3://${S3PATH}/${bindir}/" | { grep -oP "(?<=/${S3PATH}/).*\.deb" || true; })
-  echo "$pkgs" | xargs -r -I{} -n1 -P"$(nproc)" curl -fsSL -o "{}" "$repobaseurl/{}"
+  echo "$pkgs" | xargs -r -I{} -n1 -P"$(nproc)" curl -fsSLR -o "{}" "$repobaseurl/{}"
 
   # Copy the new packages in
   find "$PKGDIR" -name "*$arch*.deb" -type f -print0 | xargs -r0 cp -t "$bindir"

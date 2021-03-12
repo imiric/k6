@@ -17,5 +17,5 @@ mkdir -p "$REPODIR" && cd "$_"
 # For MSIs this is just needed to generate the index correctly.
 # TODO: Also check their hashes? Or just sync them with s3cmd which does MD5 checks...
 pkgs=$(s3cmd ls "s3://${S3PATH}/" | { grep -oP "(?<=/${S3PATH}/).*\.msi" || true; })
-echo "$pkgs" | xargs -r -I{} -n1 -P"$(nproc)" curl -fsSLO "$repobaseurl/{}"
+echo "$pkgs" | xargs -r -I{} -n1 -P"$(nproc)" curl -fsSLOR "$repobaseurl/{}"
 find "$PKGDIR" -name "*.msi" -type f -print0 | xargs -r0 cp -t "$REPODIR"

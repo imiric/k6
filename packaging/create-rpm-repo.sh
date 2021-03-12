@@ -26,7 +26,7 @@ for arch in $architectures; do
   # Download existing packages via the CDN to avoid S3 egress costs.
   # TODO: Also check their hashes? Or just sync them with s3cmd which does MD5 checks...
   pkgs=$(s3cmd ls "s3://${S3PATH}/${arch}/" | { grep -oP "(?<=/${S3PATH}/).*\.rpm" || true; })
-  echo "$pkgs" | xargs -r -I{} -n1 -P"$(nproc)" curl -fsSLO "$repobaseurl/{}"
+  echo "$pkgs" | xargs -r -I{} -n1 -P"$(nproc)" curl -fsSLOR "$repobaseurl/{}"
 
   # Copy the new packages in
   # FIXME: The architecture naming used by yum docs and in public RPM repos is
