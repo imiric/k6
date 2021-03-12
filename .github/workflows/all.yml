@@ -373,9 +373,10 @@ jobs:
     # needs: [configure, build, package-windows]
     # if: startsWith(github.ref, 'refs/tags/v')
     container:
-      # Debian carries both apt-ftparchive and createrepo, whereas createrepo
-      # was removed in Ubuntu 20.04.
-      image: debian:buster
+      # Using Debian since it carries both apt-ftparchive and createrepo,
+      # whereas createrepo was removed in Ubuntu 20.04. And Python is
+      # needed for s3cmd and the index generation script.
+      image: python:3.8-slim-buster
       env:
         VERSION: ${{ needs.configure.outputs.version }}
         DEBIAN_FRONTEND: noninteractive
@@ -407,7 +408,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update -y
-          apt-get install -y curl apt-utils createrepo python3-pip
+          apt-get install -y curl apt-utils createrepo
           pip3 install s3cmd
       # WIP Instead of building
       - name: Download binaries
@@ -417,7 +418,7 @@ jobs:
             'https://dl.bintray.com/loadimpact/deb/k6-v0.29.0-amd64.deb' \
             'https://dl.bintray.com/loadimpact/rpm/k6-v0.29.0-amd64.rpm' \
             'https://dl.bintray.com/loadimpact/windows/k6-v0.29.0-amd64.msi'
-      - name: Publish packages
+      - name: Create package repositories
         run: |
           # TODO: Add choco
           for repo in deb rpm msi; do
