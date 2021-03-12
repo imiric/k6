@@ -372,13 +372,14 @@ jobs:
     needs: [configure, build, package-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     container:
+      # Debian carries both apt-ftparchive and createrepo, whereas createrepo
+      # was removed in Ubuntu 20.04.
       image: debian:buster
-      options: '--cap-add SYS_ADMIN --device /dev/fuse --security-opt apparmor:unconfined'
       env:
         VERSION: ${{ needs.configure.outputs.version }}
         DEBIAN_FRONTEND: noninteractive
-        AWSACCESSKEYID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWSSECRETACCESSKEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
       - name: Download binaries
         uses: actions/download-artifact@v2
@@ -403,17 +404,16 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update -y
-          apt-get install -y curl s3fs dpkg-dev createrepo python3
-      - name: Create package repositories
+          apt-get install -y curl apt-utils createrepo python3
+      - name: Publish packages
         run: |
-          ./packaging/create-deb-repo.sh ./dist ./dl.k6.io/deb
-          ./packaging/create-rpm-repo.sh ./dist ./dl.k6.io/rpm
-          mkdir -p ./dl.k6.io/msi && cp dist/k6*.msi ./dl.k6.io/msi/
+          # TODO: Add choco
+          for repo in deb rpm msi; do
+            "./packaging/create-${repo}-repo.sh" "$PWD/dist" "$PWD/dl.k6.io/${repo}"
+          done
       - name: Generate index.html
         run: |
-          curl -fsSL -o /tmp/generate_index.py \
-            https://gist.githubusercontent.com/glowinthedark/625eb4caeca12c5aa52778a3b4b0adb4/raw/004291df9f637d2e6fe830a27c6fcb9d81eca685/generate_directory_index_caddystyle.py
-          cd ./dl.k6.io
-          python3 /tmp/generate_index.py -r
+          cd dl.k6.io
+          ../packaging/generate_index.py -r
       - name: Sync to S3 bucket
         run: s3cmd sync ./dl.k6.io/ "s3://test-dl-k6-io/"
