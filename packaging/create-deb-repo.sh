@@ -7,9 +7,11 @@ set -exEuo pipefail
 #   s3cmd expects AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set in the
 #   environment.
 
-PKGDIR="$1"  # The directory where .deb files are located
-REPODIR="$2" # The package repository working directory
-S3PATH="${3-test-dl-k6-io}/deb"
+_s3bucket="test-dl-k6-io"
+_usage="Usage: $0 <pkgdir> <repodir> [s3bucket=${_s3bucket}]"
+PKGDIR="${1?${_usage}}"  # The directory where .deb files are located
+REPODIR="${2?${_usage}}" # The package repository working directory
+S3PATH="${3-${_s3bucket}}/deb"
 
 # We don't publish i386 packages, but the repo structure is needed for
 # compatibility on some systems. See https://unix.stackexchange.com/a/272916 .

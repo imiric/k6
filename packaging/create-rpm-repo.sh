@@ -7,9 +7,11 @@ set -exEuo pipefail
 #   s3cmd expects AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to be set in the
 #   environment.
 
-PKGDIR="$1"  # The directory where .rpm files are located
-REPODIR="$2" # The package repository working directory
-S3PATH="${3-test-dl-k6-io}/rpm"
+_s3bucket="test-dl-k6-io"
+_usage="Usage: $0 <pkgdir> <repodir> [s3bucket=${_s3bucket}]"
+PKGDIR="${1?${_usage}}"  # The directory where .rpm files are located
+REPODIR="${2?${_usage}}" # The package repository working directory
+S3PATH="${3-${_s3bucket}}/rpm"
 
 architectures="x86_64"
 # TODO: Replace with CDN URL

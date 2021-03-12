@@ -1,8 +1,9 @@
 #!/bin/bash
 set -exEuo pipefail
 
-PKGDIR="$1"  # The directory where .msi files are located
-REPODIR="$2" # The package repository working directory
+_usage="Usage: $0 <pkgdir> <repodir>"
+PKGDIR="${1?${_usage}}"  # The directory where .msi files are located
+REPODIR="${2?${_usage}}" # The package repository working directory
 
 mkdir -p "$REPODIR"
 
