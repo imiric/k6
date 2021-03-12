@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - ci/s3-package-repos
     tags:
       - v*
   pull_request:
