@@ -30,7 +30,10 @@ for arch in $architectures; do
   echo "$pkgs" | xargs -r -I{} -n1 -P"$(nproc)" curl -fsSLO "$repobaseurl/{}"
 
   # Copy the new packages in
-  find "$PKGDIR" -name "*$arch*.rpm" -type f -print0 | xargs -r0 cp -t .
+  # FIXME: The architecture naming used by yum docs and in public RPM repos is
+  # "x86_64", whereas our packages are named with "amd64". So we do a replacement
+  # here, but we should probably consider naming them with "x86_64" instead.
+  find "$PKGDIR" -name "*${arch/x86_64/amd64}*.rpm" -type f -print0 | xargs -r0 cp -t .
   createrepo .
   cd -
 done
