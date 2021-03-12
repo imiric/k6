@@ -408,6 +408,7 @@ jobs:
         run: |
           apt-get update -y
           apt-get install -y curl apt-utils createrepo python3
+          pip3 install s3cmd
       # WIP Instead of building
       - name: Download binaries
         run: |
