@@ -382,6 +382,8 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
       # - name: Download binaries
       #   uses: actions/download-artifact@v2
       #   with:
@@ -416,11 +418,9 @@ jobs:
             'https://dl.bintray.com/loadimpact/windows/k6-v0.28.0-amd64.msi'
       - name: Publish packages
         run: |
-          echo $PWD
-          ls -al
           # TODO: Add choco
           for repo in deb rpm msi; do
-            "$PWD/packaging/create-${repo}-repo.sh" "$PWD/dist" "$PWD/dl.k6.io/${repo}"
+            "./packaging/create-${repo}-repo.sh" "$PWD/dist" "$PWD/dl.k6.io/${repo}"
           done
       - name: Generate index.html
         run: |
