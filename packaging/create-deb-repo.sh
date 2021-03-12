@@ -20,8 +20,7 @@ architectures="amd64 i386"
 #repobaseurl="https://dl.k6.io/deb"
 repobaseurl="http://test-dl-k6-io.s3-website.eu-north-1.amazonaws.com/deb"
 
-mkdir -p "$REPODIR"
-cd "$REPODIR"
+mkdir -p "$REPODIR" && cd "$_"
 
 echo "Creating Debian package repository..."
 for arch in $architectures; do

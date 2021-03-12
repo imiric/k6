@@ -18,8 +18,7 @@ architectures="x86_64"
 #repobaseurl="https://dl.k6.io/rpm"
 repobaseurl="http://test-dl-k6-io.s3-website.eu-north-1.amazonaws.com/rpm"
 
-mkdir -p "$REPODIR"
-cd "$REPODIR"
+mkdir -p "$REPODIR" && cd "$_"
 
 echo "Creating RPM package repository..."
 for arch in $architectures; do
